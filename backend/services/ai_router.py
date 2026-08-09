@@ -29,20 +29,23 @@ class AIProviderError(Exception):
 
 
 class AIRouter:
-    def __init__(self):
-        self.providers = []
+    def get_providers(self):
+        providers = []
         if settings.GROQ_API_KEY:
-            self.providers.append(("groq", self._groq))
+            providers.append(("groq", self._groq))
         if settings.OPENROUTER_API_KEY:
-            self.providers.append(("openrouter", self._openrouter))
+            providers.append(("openrouter", self._openrouter))
         if settings.OPENROUTER_API_KEY:
-            self.providers.append(("openrouter_free", self._openrouter_free))
-
-        logger.info("AI failover providers configured: %s", [p[0] for p in self.providers])
+            providers.append(("openrouter_free", self._openrouter_free))
+        return providers
 
     @property
     def active(self):
-        return bool(self.providers)
+        return bool(self.get_providers())
+
+    @property
+    def providers(self):
+        return self.get_providers()
 
     @property
     def configured_models(self):
@@ -86,6 +89,8 @@ class AIRouter:
             },
             timeout=settings.AI_TIMEOUT_SECONDS,
         )
+        if not r.ok:
+            logger.error(f"Groq API call failed status={r.status_code} body={r.text}")
         r.raise_for_status()
         data = r.json()
         return data["choices"][0]["message"]["content"]
@@ -108,6 +113,8 @@ class AIRouter:
             },
             timeout=settings.AI_TIMEOUT_SECONDS,
         )
+        if not r.ok:
+            logger.error(f"OpenRouter API call failed status={r.status_code} body={r.text}")
         r.raise_for_status()
         data = r.json()
         return data["choices"][0]["message"]["content"]
@@ -131,6 +138,8 @@ class AIRouter:
             },
             timeout=settings.AI_TIMEOUT_SECONDS,
         )
+        if not r.ok:
+            logger.error(f"OpenRouter Free API call failed status={r.status_code} body={r.text}")
         r.raise_for_status()
         data = r.json()
         return data["choices"][0]["message"]["content"]
@@ -152,8 +161,15 @@ class AIRouter:
         return messages
 
     def _try_all(self, messages, max_tokens=900, temperature=0.2):
+        active_providers = self.get_providers()
+        if not active_providers:
+            raise AIProviderError(
+                "No AI API keys configured. Please add GROQ_API_KEY or OPENROUTER_API_KEY "
+                "in Vercel Project Settings -> Environment Variables."
+            )
+
         last_error = None
-        for name, fn in self.providers:
+        for name, fn in active_providers:
             try:
                 text = fn(messages, max_tokens, temperature)
                 if text:
@@ -162,7 +178,7 @@ class AIRouter:
                         "text": text,
                         "provider": name,
                         "model": self.configured_models[name],
-                        "is_fallback": name != self.providers[0][0],
+                        "is_fallback": name != active_providers[0][0],
                     }
             except Exception as exc:
                 last_error = exc
