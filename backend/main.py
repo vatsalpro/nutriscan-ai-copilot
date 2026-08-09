@@ -61,6 +61,8 @@ def on_startup():
     logger.info(f"NutriScan API ready. AI providers active: {ai_router.active}; providers={list(ai_router.configured_models.keys())}")
 
 @app.get("/")
+@app.get("/api")
+@app.get("/api/")
 def root():
     from services.ai_router import ai_router
     return {
@@ -74,6 +76,7 @@ def root():
     }
 
 @app.get("/health")
+@app.get("/api/health")
 def health():
     return {"status": "ok"}
 
