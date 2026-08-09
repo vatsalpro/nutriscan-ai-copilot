@@ -14,6 +14,7 @@ If a provider errors, the next provider is tried automatically.
 import base64
 import json
 import logging
+import re
 from typing import Optional
 
 import requests
@@ -64,7 +65,14 @@ class AIRouter:
             text = text.split("```json", 1)[1].split("```", 1)[0].strip()
         elif "```" in text:
             text = text.split("```", 1)[1].split("```", 1)[0].strip()
-        return json.loads(text)
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            match = re.search(r'(\{.*\}|\[.*\])', text, re.DOTALL)
+            if match:
+                return json.loads(match.group(1))
+            raise
+
 
     def _groq(self, messages, max_tokens, temperature):
         r = requests.post(

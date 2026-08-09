@@ -143,7 +143,7 @@ export default function MealScanPage({ setCurrentPage }) {
         <div className="glass-panel p-10 text-center rounded-3xl space-y-4">
           <Loader2 className="w-10 h-10 text-emerald-400 animate-spin mx-auto" />
           <h3 className="text-lg font-bold text-white">Analyzing prepared dish...</h3>
-          <p className="text-xs text-slate-400">Gemini Vision AI is identifying food item and portion weight</p>
+          <p className="text-xs text-slate-400">Multimodal Vision AI is identifying food item and portion weight</p>
         </div>
       )}
 

@@ -41,7 +41,7 @@ export default function Footer() {
       </div>
 
       <div className="max-w-7xl mx-auto pt-6 border-t border-slate-900 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 gap-4">
-        <div>© 2026 NutriScan AI. Powered by Gemini 2.5 Flash-Lite Multimodal Vision.</div>
+        <div>© 2026 NutriScan AI. Powered by Multimodal Vision AI & Failover Stack.</div>
         <div className="flex items-center gap-4">
           <span>8-Hour Hackathon Edition</span>
           <span>•</span>

@@ -71,7 +71,7 @@ export default function HomePage({ setCurrentPage, onSelectDemoIngredients }) {
 
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-800/90 border border-emerald-400/30 text-emerald-300 text-xs font-bold badge-pulse shadow-md">
           <span className="text-sm">✨</span>
-          <span>Multimodal Gemini Vision Powered</span>
+          <span>Multimodal Vision AI Powered</span>
         </div>
 
         {/* Animated Sequential Ultra-Fast 0.8s Highlight Tagline */}

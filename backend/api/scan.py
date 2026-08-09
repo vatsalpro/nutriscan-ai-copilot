@@ -11,7 +11,7 @@ MAX_FILE_SIZE = 10 * 1024 * 1024 # 10 MB
 @router.post("/ingredients")
 async def scan_ingredients(file: UploadFile = File(...)):
     """
-    Accepts an uploaded kitchen/food image and returns detected ingredients using Gemini Vision or Demo Provider.
+    Accepts an uploaded kitchen/food image and returns detected ingredients using Vision AI or Demo Provider.
     """
     if file.content_type and file.content_type.lower() not in ALLOWED_MIME_TYPES:
         raise HTTPException(status_code=400, detail="Invalid image format. Supported formats: JPG, JPEG, PNG, WEBP.")

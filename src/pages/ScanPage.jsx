@@ -152,7 +152,7 @@ export default function ScanPage({ setCurrentPage, setDetectedIngredients, setSe
 
           <div className="space-y-2">
             <h3 className="text-xl font-bold text-white">Analyzing your kitchen...</h3>
-            <p className="text-xs text-slate-400">Gemini Vision AI is identifying visible ingredients</p>
+            <p className="text-xs text-slate-400">Multimodal Vision AI is identifying visible ingredients</p>
           </div>
 
           <div className="text-left space-y-3 bg-slate-950/60 p-4 rounded-2xl border border-slate-800 text-xs">

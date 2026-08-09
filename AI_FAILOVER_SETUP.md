@@ -12,7 +12,7 @@ NutriScan now uses this failover order:
 If #1 fails, the same request is sent to #2. If #2 fails, it is sent to #3.
 The OpenRouter free router chooses from currently available free models and filters for capabilities needed by the request, including image understanding when the request contains an image.
 
-## Render environment variables
+## Vercel environment variables
 
 ```env
 GROQ_API_KEY=your_groq_key
@@ -21,10 +21,10 @@ GROQ_MODEL=meta-llama/llama-4-scout-17b-16e-instruct
 OPENROUTER_API_KEY=your_openrouter_key
 OPENROUTER_MODEL=google/gemma-4-26b-a4b-it:free
 OPENROUTER_FREE_MODEL=openrouter/free
-OPENROUTER_SITE_URL=https://nutriscan-ai-copilot.onrender.com
+OPENROUTER_SITE_URL=https://nutriscan-ai.vercel.app
 ```
 
-Only server-side Render environment variables are needed. Do not put API keys in Netlify.
+Only server-side Vercel environment variables are needed. Do not expose API keys in client-side code.
 
 ## Important
 

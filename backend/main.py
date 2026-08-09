@@ -1,3 +1,4 @@
+import os
 import uvicorn
 import logging
 from fastapi import FastAPI
@@ -28,11 +29,21 @@ async def add_security_headers(request, call_next):
     return response
 
 # CORS setup
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
+origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+if not origins:
+    origins = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:4173",
+        "https://nutriscan-ai.vercel.app",
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

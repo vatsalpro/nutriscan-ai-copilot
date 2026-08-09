@@ -1,24 +1,18 @@
-# NutriScan
-
-AI kitchen copilot powered by Qwen2.5-VL-3B-Instruct through Hugging Face Inference Providers.
-
-See `QWEN_SETUP.md` for setup and deployment.
-
 # 🥗 NutriScan — AI Kitchen Copilot
 
 > **"Most recipe apps ask what you want to eat. NutriScan asks what you already have."**
 
 **Tagline**: *Scan it. Cook it. Understand it.*
 
-NutriScan is an AI-powered kitchen copilot built for hackathons. It lets users photograph or upload ingredients they already have in their kitchen, uses a multimodal vision AI model (Gemini 2.5 Flash-Lite) to identify them, allows users to confirm/edit quantities, matches recipes they can actually cook, shows required vs available ingredient breakdowns, calculates deterministic nutrition, provides step-by-step interactive cooking instructions, suggests healthier meal improvements, estimates costs, and helps reduce food waste.
+NutriScan is an AI-powered kitchen copilot built for hackathons. It lets users photograph or upload ingredients they already have in their kitchen, uses a 3-provider multimodal vision AI failover stack (Groq Meta Llama 4 Scout -> OpenRouter Gemma 4 Free -> OpenRouter Free Router) to identify them, allows users to confirm/edit quantities, matches recipes they can actually cook, shows required vs available ingredient breakdowns, calculates deterministic nutrition, provides step-by-step interactive cooking instructions, suggests healthier meal improvements, estimates costs, and helps reduce food waste.
 
 ---
 
 ## 🌟 Key Features
 
 1. **📸 Multimodal Vision Ingredient Detection**:
-   - Uses **Gemini 2.5 Flash-Lite** API server-side for image understanding and ingredient identification.
-   - Includes **DemoVisionProvider** fallback mode when no `GEMINI_API_KEY` is present.
+   - Uses **3-Provider AI Failover Stack** (Groq Llama 4 Scout → OpenRouter Gemma 4 → OpenRouter Free) for image understanding and ingredient identification.
+   - Includes **DemoVisionProvider** fallback mode when AI providers are unavailable.
 2. **⚖️ Estimated Quantity Confirmation**:
    - Honest AI representation labeled as "AI estimate ~200g".
    - Interactive quantity controls (`[-] 200g [+]`) & unit pickers.
@@ -52,13 +46,14 @@ NutriScan is an AI-powered kitchen copilot built for hackathons. It lets users p
 ```text
 User Image (Web / Mobile)
        ↓
-React + Vite Frontend (Port 5173)
+React + Vite Frontend (Vercel)
        ↓
-FastAPI Backend (Port 8000)
+FastAPI Backend (Vercel Serverless /api)
        ↓
-VisionService (GeminiVisionProvider ↔ DemoVisionProvider)
-       ↓
-Gemini 2.5 Flash-Lite API
+VisionService & AI Router (3-Provider Failover)
+       ├── 1. Groq (Meta Llama 4 Scout)
+       ├── 2. OpenRouter (Google Gemma 4 Free)
+       └── 3. OpenRouter Free Router
        ↓
 Deterministic Nutrition & Scoring Engine + SQLite DB
 ```
