@@ -1,0 +1,609 @@
+[
+  {
+    "id": "paneer-masala",
+    "name": "Paneer Masala",
+    "description": "A rich and fragrant North Indian curry made with soft paneer cubes in a spiced tomato-onion gravy.",
+    "prep_time": 10,
+    "cook_time": 15,
+    "servings": 2,
+    "difficulty": "Medium",
+    "image_url": "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?auto=format&fit=crop&w=800&q=80",
+    "tags": ["high-protein", "vegetarian", "budget-friendly"],
+    "estimated_cost": 120,
+    "ingredients": [
+      { "ingredient": "paneer", "quantity": 200, "unit": "g" },
+      { "ingredient": "tomato", "quantity": 150, "unit": "g" },
+      { "ingredient": "onion", "quantity": 100, "unit": "g" },
+      { "ingredient": "capsicum", "quantity": 80, "unit": "g" },
+      { "ingredient": "oil", "quantity": 10, "unit": "ml" },
+      { "ingredient": "cumin", "quantity": 1, "unit": "tsp" },
+      { "ingredient": "coriander", "quantity": 1, "unit": "tbsp" },
+      { "ingredient": "garlic", "quantity": 3, "unit": "cloves" },
+      { "ingredient": "ginger", "quantity": 10, "unit": "g" }
+    ],
+    "steps": [
+      "Dice paneer into 1-inch cubes. Finely chop onions, tomatoes, and capsicum.",
+      "Heat oil in a pan, add 1 tsp cumin seeds and let them splutter.",
+      "Sauté minced garlic and ginger for 1 minute until fragrant.",
+      "Add chopped onions and sauté until golden brown (approx 4-5 minutes).",
+      "Add chopped tomatoes, coriander powder, and cook until tomatoes turn soft and oil separates.",
+      "Add capsicum cubes and cook for 3 minutes.",
+      "Gently stir in paneer cubes, season with salt, simmer for 4 minutes and serve hot!"
+    ],
+    "substitutions": [
+      { "from": "paneer", "to": "chickpeas", "notes": "Reduces saturated fat and adds 7.6g of fiber per 100g." },
+      { "from": "paneer", "to": "egg", "notes": "Reduces calorie density while maintaining protein level." }
+    ],
+    "improvements": [
+      { "action": "reduce_oil", "target": "oil", "new_quantity": 5, "reason": "Halving cooking oil reduces 45 calories per serving." },
+      { "action": "add_veggies", "target": "spinach", "new_quantity": 100, "reason": "Adding 100g spinach boosts fiber by +2.2g and iron content." },
+      { "action": "reduce_salt", "target": "salt", "new_quantity": 0, "reason": "Use lemon juice instead of extra salt to control sodium levels." }
+    ]
+  },
+  {
+    "id": "aloo-paneer",
+    "name": "Aloo Paneer Curry",
+    "description": "Comforting homestyle gravy featuring spiced potatoes and tender cottage cheese cubes.",
+    "prep_time": 10,
+    "cook_time": 20,
+    "servings": 2,
+    "difficulty": "Easy",
+    "image_url": "https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80",
+    "tags": ["vegetarian", "under-30-min", "budget-friendly"],
+    "estimated_cost": 95,
+    "ingredients": [
+      { "ingredient": "potato", "quantity": 250, "unit": "g" },
+      { "ingredient": "paneer", "quantity": 150, "unit": "g" },
+      { "ingredient": "onion", "quantity": 100, "unit": "g" },
+      { "ingredient": "tomato", "quantity": 120, "unit": "g" },
+      { "ingredient": "oil", "quantity": 10, "unit": "ml" },
+      { "ingredient": "cumin", "quantity": 1, "unit": "tsp" }
+    ],
+    "steps": [
+      "Boil and cube potatoes. Cube paneer into small pieces.",
+      "Heat oil in a skillet, splutter cumin seeds, and fry chopped onions till translucent.",
+      "Add pureed tomatoes and spices, cook until gravy thickens.",
+      "Fold in boiled potatoes and paneer, simmer on low heat for 8 minutes."
+    ],
+    "substitutions": [
+      { "from": "paneer", "to": "lentils", "notes": "Adds high dietary fiber and plant protein." }
+    ],
+    "improvements": [
+      { "action": "add_veggies", "target": "capsicum", "new_quantity": 80, "reason": "Boost Vitamin C content with fresh capsicum." }
+    ]
+  },
+  {
+    "id": "kadai-paneer",
+    "name": "Kadai Paneer",
+    "description": "Bold and flavorful Indian curry cooked with bell peppers and freshly ground kadai spices.",
+    "prep_time": 15,
+    "cook_time": 15,
+    "servings": 2,
+    "difficulty": "Medium",
+    "image_url": "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=800&q=80",
+    "tags": ["high-protein", "vegetarian"],
+    "estimated_cost": 135,
+    "ingredients": [
+      { "ingredient": "paneer", "quantity": 250, "unit": "g" },
+      { "ingredient": "capsicum", "quantity": 150, "unit": "g" },
+      { "ingredient": "onion", "quantity": 120, "unit": "g" },
+      { "ingredient": "tomato", "quantity": 150, "unit": "g" },
+      { "ingredient": "butter", "quantity": 15, "unit": "g" },
+      { "ingredient": "coriander", "quantity": 1, "unit": "tbsp" }
+    ],
+    "steps": [
+      "Sauté crunchy capsicum and onion petals high heat for 3 minutes. Set aside.",
+      "Make tomato reduction with kadai spices.",
+      "Combine paneer, sautéed veggies, tomato masala and finish with coriander leaves."
+    ],
+    "substitutions": [
+      { "from": "butter", "to": "oil", "notes": "Replaces saturated animal fats with plant-based oils." }
+    ],
+    "improvements": [
+      { "action": "reduce_fat", "target": "butter", "new_quantity": 5, "reason": "Reduces 80 kcal per serving." }
+    ]
+  },
+  {
+    "id": "paneer-fried-rice",
+    "name": "Paneer Fried Rice",
+    "description": "High-protein Indo-Chinese fried rice loaded with crispy paneer cubes and crunchy veggies.",
+    "prep_time": 10,
+    "cook_time": 10,
+    "servings": 2,
+    "difficulty": "Easy",
+    "image_url": "https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=800&q=80",
+    "tags": ["high-protein", "under-20-min", "quick"],
+    "estimated_cost": 110,
+    "ingredients": [
+      { "ingredient": "rice", "quantity": 300, "unit": "g" },
+      { "ingredient": "paneer", "quantity": 150, "unit": "g" },
+      { "ingredient": "capsicum", "quantity": 80, "unit": "g" },
+      { "ingredient": "carrot", "quantity": 60, "unit": "g" },
+      { "ingredient": "onion", "quantity": 60, "unit": "g" },
+      { "ingredient": "oil", "quantity": 10, "unit": "ml" }
+    ],
+    "steps": [
+      "Heat wok on high flame. Shallow fry paneer cubes till golden.",
+      "Stir-fry chopped onion, carrot, capsicum for 2 minutes maintaining crunch.",
+      "Add cooked rice, fried paneer, black pepper, soy sauce and toss vigorously."
+    ],
+    "substitutions": [
+      { "from": "paneer", "to": "egg", "notes": "Creates classic Egg Fried Rice." }
+    ],
+    "improvements": [
+      { "action": "increase_protein", "target": "paneer", "new_quantity": 220, "reason": "Adding 70g paneer increases protein by 12g per serving." }
+    ]
+  },
+  {
+    "id": "vegetable-fried-rice",
+    "name": "Vegetable Fried Rice",
+    "description": "Classic light stir-fried rice loaded with vibrant diced vegetables.",
+    "prep_time": 10,
+    "cook_time": 10,
+    "servings": 2,
+    "difficulty": "Easy",
+    "image_url": "https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=800&q=80",
+    "tags": ["under-20-min", "vegan", "budget-friendly", "low-calorie"],
+    "estimated_cost": 75,
+    "ingredients": [
+      { "ingredient": "rice", "quantity": 300, "unit": "g" },
+      { "ingredient": "carrot", "quantity": 100, "unit": "g" },
+      { "ingredient": "capsicum", "quantity": 80, "unit": "g" },
+      { "ingredient": "onion", "quantity": 80, "unit": "g" },
+      { "ingredient": "garlic", "quantity": 4, "unit": "cloves" },
+      { "ingredient": "oil", "quantity": 8, "unit": "ml" }
+    ],
+    "steps": [
+      "Sauté garlic and onions in high flame for 1 minute.",
+      "Add carrots and capsicum, toss for 2 minutes.",
+      "Stir in cold boiled rice and seasonings, toss thoroughly."
+    ],
+    "substitutions": [
+      { "from": "rice", "to": "oats", "notes": "Makes Savory Oatmeal Bowl." }
+    ],
+    "improvements": [
+      { "action": "add_veggies", "target": "spinach", "new_quantity": 80, "reason": "Boost micronutrient density." }
+    ]
+  },
+  {
+    "id": "egg-fried-rice",
+    "name": "Egg Fried Rice",
+    "description": "Quick high-protein rice bowl tossed with scrambled eggs and fresh garlic.",
+    "prep_time": 5,
+    "cook_time": 10,
+    "servings": 2,
+    "difficulty": "Easy",
+    "image_url": "https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?auto=format&fit=crop&w=800&q=80",
+    "tags": ["high-protein", "under-20-min", "quick", "budget-friendly"],
+    "estimated_cost": 65,
+    "ingredients": [
+      { "ingredient": "rice", "quantity": 300, "unit": "g" },
+      { "ingredient": "egg", "quantity": 3, "unit": "pcs" },
+      { "ingredient": "onion", "quantity": 60, "unit": "g" },
+      { "ingredient": "capsicum", "quantity": 60, "unit": "g" },
+      { "ingredient": "oil", "quantity": 10, "unit": "ml" }
+    ],
+    "steps": [
+      "Scramble eggs in hot pan and set aside.",
+      "Stir fry veggies, combine rice and scrambled eggs, toss on high heat."
+    ],
+    "substitutions": [
+      { "from": "egg", "to": "paneer", "notes": "Vegetarian high-protein option." }
+    ],
+    "improvements": [
+      { "action": "reduce_oil", "target": "oil", "new_quantity": 5, "reason": "Cuts 45 kcal." }
+    ]
+  },
+  {
+    "id": "chicken-curry",
+    "name": "Homestyle Chicken Curry",
+    "description": "Hearty chicken stew cooked in onion-tomato gravy with aromatic spices.",
+    "prep_time": 15,
+    "cook_time": 25,
+    "servings": 2,
+    "difficulty": "Medium",
+    "image_url": "https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?auto=format&fit=crop&w=800&q=80",
+    "tags": ["high-protein", "healthy"],
+    "estimated_cost": 150,
+    "ingredients": [
+      { "ingredient": "chicken", "quantity": 350, "unit": "g" },
+      { "ingredient": "onion", "quantity": 150, "unit": "g" },
+      { "ingredient": "tomato", "quantity": 150, "unit": "g" },
+      { "ingredient": "oil", "quantity": 12, "unit": "ml" },
+      { "ingredient": "ginger", "quantity": 10, "unit": "g" },
+      { "ingredient": "garlic", "quantity": 5, "unit": "cloves" }
+    ],
+    "steps": [
+      "Sear chicken pieces in 1 tsp oil till light brown.",
+      "Prepare onion-ginger-garlic paste and brown in pan.",
+      "Add tomato puree and spices, simmer chicken for 20 mins until tender."
+    ],
+    "substitutions": [
+      { "from": "chicken", "to": "paneer", "notes": "Vegetarian cottage cheese swap." }
+    ],
+    "improvements": [
+      { "action": "add_veggies", "target": "spinach", "new_quantity": 100, "reason": "Makes delicious Palak Chicken." }
+    ]
+  },
+  {
+    "id": "chicken-rice-bowl",
+    "name": "Chicken Meal Prep Bowl",
+    "description": "Clean, high-protein bowl with pan-seared chicken breast, steamed rice, and capsicum.",
+    "prep_time": 10,
+    "cook_time": 15,
+    "servings": 2,
+    "difficulty": "Easy",
+    "image_url": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80",
+    "tags": ["high-protein", "healthy", "under-30-min", "low-calorie"],
+    "estimated_cost": 140,
+    "ingredients": [
+      { "ingredient": "chicken", "quantity": 300, "unit": "g" },
+      { "ingredient": "rice", "quantity": 250, "unit": "g" },
+      { "ingredient": "capsicum", "quantity": 100, "unit": "g" },
+      { "ingredient": "oil", "quantity": 8, "unit": "ml" }
+    ],
+    "steps": [
+      "Grill chicken breasts with pepper and herbs for 6 mins per side.",
+      "Serve over steamed rice with sautéed capsicum."
+    ],
+    "substitutions": [
+      { "from": "chicken", "to": "paneer", "notes": "Vegetarian meal prep bowl." }
+    ],
+    "improvements": [
+      { "action": "increase_fiber", "target": "carrot", "new_quantity": 80, "reason": "Adds dietary fiber and beta-carotene." }
+    ]
+  },
+  {
+    "id": "spinach-paneer",
+    "name": "Palak Paneer",
+    "description": "Nutrient-dense spinach gravy loaded with tender paneer cubes.",
+    "prep_time": 15,
+    "cook_time": 15,
+    "servings": 2,
+    "difficulty": "Medium",
+    "image_url": "https://images.unsplash.com/photo-1610057099443-fde8c4d50f91?auto=format&fit=crop&w=800&q=80",
+    "tags": ["high-protein", "healthy", "vegetarian", "high-fiber"],
+    "estimated_cost": 125,
+    "ingredients": [
+      { "ingredient": "spinach", "quantity": 300, "unit": "g" },
+      { "ingredient": "paneer", "quantity": 200, "unit": "g" },
+      { "ingredient": "onion", "quantity": 80, "unit": "g" },
+      { "ingredient": "tomato", "quantity": 80, "unit": "g" },
+      { "ingredient": "garlic", "quantity": 4, "unit": "cloves" },
+      { "ingredient": "butter", "quantity": 10, "unit": "g" }
+    ],
+    "steps": [
+      "Blanch spinach leaves and puree smoothly.",
+      "Sauté garlic and onions in butter, add spinach puree and paneer cubes.",
+      "Simmer gently for 5 minutes."
+    ],
+    "substitutions": [
+      { "from": "paneer", "to": "chickpeas", "notes": "Creates Palak Chana (vegan option)." }
+    ],
+    "improvements": [
+      { "action": "reduce_fat", "target": "butter", "new_quantity": 5, "reason": "Replaces half butter with lemon juice for freshness." }
+    ]
+  },
+  {
+    "id": "aloo-gobi",
+    "name": "Aloo Gobi Matar",
+    "description": "Classic dry Indian potato vegetable stir fry seasoned with turmeric and cumin.",
+    "prep_time": 10,
+    "cook_time": 18,
+    "servings": 2,
+    "difficulty": "Easy",
+    "image_url": "https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80",
+    "tags": ["vegetarian", "vegan", "budget-friendly", "high-fiber"],
+    "estimated_cost": 60,
+    "ingredients": [
+      { "ingredient": "potato", "quantity": 300, "unit": "g" },
+      { "ingredient": "onion", "quantity": 100, "unit": "g" },
+      { "ingredient": "tomato", "quantity": 100, "unit": "g" },
+      { "ingredient": "oil", "quantity": 10, "unit": "ml" },
+      { "ingredient": "cumin", "quantity": 1, "unit": "tsp" }
+    ],
+    "steps": [
+      "Sauté cumin, chopped onions, and tomatoes until thick paste forms.",
+      "Cover and steam potatoes on low heat till tender."
+    ],
+    "substitutions": [
+      { "from": "potato", "to": "paneer", "notes": "Lowers carb ratio and increases protein." }
+    ],
+    "improvements": [
+      { "action": "add_veggies", "target": "spinach", "new_quantity": 100, "reason": "Boosts vitamins A, C, and iron." }
+    ]
+  },
+  {
+    "id": "vegetable-sandwich",
+    "name": "Bombay Vegetable Toastie",
+    "description": "Crispy toasted sandwich layered with spiced potato, tomatoes, cucumber and chutney.",
+    "prep_time": 10,
+    "cook_time": 5,
+    "servings": 2,
+    "difficulty": "Easy",
+    "image_url": "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?auto=format&fit=crop&w=800&q=80",
+    "tags": ["under-20-min", "quick", "vegetarian", "budget-friendly"],
+    "estimated_cost": 50,
+    "ingredients": [
+      { "ingredient": "bread", "quantity": 4, "unit": "pcs" },
+      { "ingredient": "potato", "quantity": 150, "unit": "g" },
+      { "ingredient": "tomato", "quantity": 80, "unit": "g" },
+      { "ingredient": "capsicum", "quantity": 50, "unit": "g" },
+      { "ingredient": "butter", "quantity": 10, "unit": "g" }
+    ],
+    "steps": [
+      "Butter bread slices and layer with boiled potato slices, tomatoes, and capsicum.",
+      "Toast until golden and crisp."
+    ],
+    "substitutions": [
+      { "from": "bread", "to": "paneer", "notes": "Make a paneer salad wrap instead." }
+    ],
+    "improvements": [
+      { "action": "increase_protein", "target": "paneer", "new_quantity": 80, "reason": "Add paneer slice to make Paneer Veg Sandwich (+15g protein)." }
+    ]
+  },
+  {
+    "id": "paneer-wrap",
+    "name": "Spiced Paneer Tikka Wrap",
+    "description": "Grilled paneer and capsicum wrapped in whole wheat flatbread with yogurt mint dip.",
+    "prep_time": 10,
+    "cook_time": 10,
+    "servings": 2,
+    "difficulty": "Easy",
+    "image_url": "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?auto=format&fit=crop&w=800&q=80",
+    "tags": ["high-protein", "under-20-min", "quick", "vegetarian"],
+    "estimated_cost": 90,
+    "ingredients": [
+      { "ingredient": "paneer", "quantity": 200, "unit": "g" },
+      { "ingredient": "flour", "quantity": 120, "unit": "g" },
+      { "ingredient": "capsicum", "quantity": 80, "unit": "g" },
+      { "ingredient": "onion", "quantity": 60, "unit": "g" },
+      { "ingredient": "curd", "quantity": 50, "unit": "g" }
+    ],
+    "steps": [
+      "Marinate paneer and capsicum in curd and spices, pan sear for 5 mins.",
+      "Roll in freshly cooked flatbread."
+    ],
+    "substitutions": [
+      { "from": "paneer", "to": "chicken", "notes": "Chicken Tikka Wrap swap." }
+    ],
+    "improvements": [
+      { "action": "reduce_fat", "target": "curd", "new_quantity": 40, "reason": "Use low fat hung curd." }
+    ]
+  },
+  {
+    "id": "egg-bhurji",
+    "name": "Masala Egg Bhurji",
+    "description": "Indian style scrambled eggs cooked with chopped onions, tomatoes, and green chillies.",
+    "prep_time": 5,
+    "cook_time": 8,
+    "servings": 2,
+    "difficulty": "Easy",
+    "image_url": "https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=800&q=80",
+    "tags": ["high-protein", "under-20-min", "quick", "budget-friendly", "low-calorie"],
+    "estimated_cost": 45,
+    "ingredients": [
+      { "ingredient": "egg", "quantity": 4, "unit": "pcs" },
+      { "ingredient": "onion", "quantity": 80, "unit": "g" },
+      { "ingredient": "tomato", "quantity": 80, "unit": "g" },
+      { "ingredient": "green_chili", "quantity": 2, "unit": "pcs" },
+      { "ingredient": "butter", "quantity": 10, "unit": "g" }
+    ],
+    "steps": [
+      "Sauté onion, green chili, tomato in butter.",
+      "Beat eggs, pour into pan and scramble gently till cooked through."
+    ],
+    "substitutions": [
+      { "from": "egg", "to": "paneer", "notes": "Creates Paneer Bhurji." }
+    ],
+    "improvements": [
+      { "action": "add_veggies", "target": "capsicum", "new_quantity": 50, "reason": "Adds crunch and extra vitamin C." }
+    ]
+  },
+  {
+    "id": "vegetable-omelette",
+    "name": "Fluffy Veggie Omelette",
+    "description": "Wholesome breakfast omelette packed with spinach, tomatoes, and capsicum.",
+    "prep_time": 5,
+    "cook_time": 6,
+    "servings": 1,
+    "difficulty": "Easy",
+    "image_url": "https://images.unsplash.com/photo-1510693206972-df098062cb71?auto=format&fit=crop&w=800&q=80",
+    "tags": ["high-protein", "under-20-min", "quick", "low-calorie", "healthy"],
+    "estimated_cost": 35,
+    "ingredients": [
+      { "ingredient": "egg", "quantity": 2, "unit": "pcs" },
+      { "ingredient": "spinach", "quantity": 50, "unit": "g" },
+      { "ingredient": "tomato", "quantity": 40, "unit": "g" },
+      { "ingredient": "capsicum", "quantity": 30, "unit": "g" },
+      { "ingredient": "oil", "quantity": 5, "unit": "ml" }
+    ],
+    "steps": [
+      "Whisk eggs with salt and pepper.",
+      "Pour into oiled pan, top with veggies, fold and serve."
+    ],
+    "substitutions": [
+      { "from": "egg", "to": "flour", "notes": "Make a Besan Chilla (chickpea flour pancake)." }
+    ],
+    "improvements": [
+      { "action": "add_protein", "target": "cheese", "new_quantity": 20, "reason": "Adds creamy flavor and extra protein." }
+    ]
+  },
+  {
+    "id": "tomato-pasta",
+    "name": "Penne Arrabbiata",
+    "description": "Classic Italian pasta in a spicy tomato garlic olive oil sauce.",
+    "prep_time": 10,
+    "cook_time": 12,
+    "servings": 2,
+    "difficulty": "Easy",
+    "image_url": "https://images.unsplash.com/photo-1621996346565-e3def6164286?auto=format&fit=crop&w=800&q=80",
+    "tags": ["under-30-min", "vegetarian", "vegan", "budget-friendly"],
+    "estimated_cost": 85,
+    "ingredients": [
+      { "ingredient": "pasta", "quantity": 200, "unit": "g" },
+      { "ingredient": "tomato", "quantity": 200, "unit": "g" },
+      { "ingredient": "garlic", "quantity": 4, "unit": "cloves" },
+      { "ingredient": "oil", "quantity": 10, "unit": "ml" }
+    ],
+    "steps": [
+      "Boil pasta al dente.",
+      "Sauté sliced garlic and red flakes in olive oil, add crushed tomatoes.",
+      "Toss pasta in sauce."
+    ],
+    "substitutions": [
+      { "from": "pasta", "to": "rice", "notes": "Makes Tomato Rice." }
+    ],
+    "improvements": [
+      { "action": "increase_protein", "target": "paneer", "new_quantity": 100, "reason": "Add cottage cheese cubes for +18g protein." }
+    ]
+  },
+  {
+    "id": "creamy-pasta",
+    "name": "Creamy White Sauce Pasta",
+    "description": "Indulgent pasta tossed in a rich garlic butter sauce with crunchy capsicum.",
+    "prep_time": 10,
+    "cook_time": 15,
+    "servings": 2,
+    "difficulty": "Easy",
+    "image_url": "https://images.unsplash.com/photo-1645112411341-6c4fd023714a?auto=format&fit=crop&w=800&q=80",
+    "tags": ["vegetarian", "under-30-min"],
+    "estimated_cost": 110,
+    "ingredients": [
+      { "ingredient": "pasta", "quantity": 200, "unit": "g" },
+      { "ingredient": "milk", "quantity": 250, "unit": "ml" },
+      { "ingredient": "butter", "quantity": 20, "unit": "g" },
+      { "ingredient": "flour", "quantity": 20, "unit": "g" },
+      { "ingredient": "capsicum", "quantity": 80, "unit": "g" },
+      { "ingredient": "cheese", "quantity": 30, "unit": "g" }
+    ],
+    "steps": [
+      "Melt butter, whisk flour for roux, slowly stir in milk to form smooth white sauce.",
+      "Add cooked pasta, capsicum, and melted cheese."
+    ],
+    "substitutions": [
+      { "from": "milk", "to": "curd", "notes": "Creates tangy yogurt pasta base." }
+    ],
+    "improvements": [
+      { "action": "reduce_fat", "target": "butter", "new_quantity": 10, "reason": "Halving butter saves 70 kcal." }
+    ]
+  },
+  {
+    "id": "vegetable-stir-fry",
+    "name": "Garlic Vegetable Stir Fry",
+    "description": "Crisp stir-fried carrots, capsicum, and onions in garlic soy glaze.",
+    "prep_time": 10,
+    "cook_time": 8,
+    "servings": 2,
+    "difficulty": "Easy",
+    "image_url": "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=800&q=80",
+    "tags": ["under-20-min", "quick", "vegan", "low-calorie", "healthy"],
+    "estimated_cost": 65,
+    "ingredients": [
+      { "ingredient": "capsicum", "quantity": 120, "unit": "g" },
+      { "ingredient": "carrot", "quantity": 120, "unit": "g" },
+      { "ingredient": "onion", "quantity": 80, "unit": "g" },
+      { "ingredient": "garlic", "quantity": 6, "unit": "cloves" },
+      { "ingredient": "oil", "quantity": 8, "unit": "ml" }
+    ],
+    "steps": [
+      "Stir fry garlic in hot oil.",
+      "Toss sliced vegetables on high heat for 5 minutes keeping veggies crisp."
+    ],
+    "substitutions": [
+      { "from": "capsicum", "to": "spinach", "notes": "Leafy green stir fry variation." }
+    ],
+    "improvements": [
+      { "action": "add_protein", "target": "chickpeas", "new_quantity": 150, "reason": "Turns snack into complete meal (+13g protein)." }
+    ]
+  },
+  {
+    "id": "chickpea-curry",
+    "name": "Punjabi Chole Curry",
+    "description": "Protein-rich aromatic chickpea curry cooked with dark tea-infused gravy and spices.",
+    "prep_time": 15,
+    "cook_time": 25,
+    "servings": 2,
+    "difficulty": "Medium",
+    "image_url": "https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=800&q=80",
+    "tags": ["high-protein", "high-fiber", "vegan", "healthy", "budget-friendly"],
+    "estimated_cost": 75,
+    "ingredients": [
+      { "ingredient": "chickpeas", "quantity": 250, "unit": "g" },
+      { "ingredient": "onion", "quantity": 120, "unit": "g" },
+      { "ingredient": "tomato", "quantity": 150, "unit": "g" },
+      { "ingredient": "oil", "quantity": 10, "unit": "ml" },
+      { "ingredient": "ginger", "quantity": 10, "unit": "g" }
+    ],
+    "steps": [
+      "Boil soaked chickpeas until soft.",
+      "Sauté onion tomato spice base until oil releases, mash portion of chickpeas for thick gravy."
+    ],
+    "substitutions": [
+      { "from": "chickpeas", "to": "paneer", "notes": "Makes Paneer Chole." }
+    ],
+    "improvements": [
+      { "action": "reduce_oil", "target": "oil", "new_quantity": 5, "reason": "Cuts 45 calories per serving." }
+    ]
+  },
+  {
+    "id": "dal-tadka",
+    "name": "Yellow Dal Tadka",
+    "description": "Comforting yellow lentils tempered with ghee, cumin seeds, garlic, and red chillies.",
+    "prep_time": 10,
+    "cook_time": 20,
+    "servings": 2,
+    "difficulty": "Easy",
+    "image_url": "https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80",
+    "tags": ["high-protein", "high-fiber", "vegetarian", "healthy", "budget-friendly"],
+    "estimated_cost": 55,
+    "ingredients": [
+      { "ingredient": "lentils", "quantity": 200, "unit": "g" },
+      { "ingredient": "tomato", "quantity": 100, "unit": "g" },
+      { "ingredient": "onion", "quantity": 80, "unit": "g" },
+      { "ingredient": "butter", "quantity": 10, "unit": "g" },
+      { "ingredient": "cumin", "quantity": 1, "unit": "tsp" },
+      { "ingredient": "garlic", "quantity": 4, "unit": "cloves" }
+    ],
+    "steps": [
+      "Pressure cook lentils with turmeric and salt.",
+      "Prepare garlic cumin ghee tadka and pour over piping hot lentils."
+    ],
+    "substitutions": [
+      { "from": "butter", "to": "oil", "notes": "Vegan tempering option." }
+    ],
+    "improvements": [
+      { "action": "add_veggies", "target": "spinach", "new_quantity": 100, "reason": "Makes high-iron Dal Palak." }
+    ]
+  },
+  {
+    "id": "mixed-veg-curry",
+    "name": "Mixed Vegetable Gravy",
+    "description": "Colorful blend of potatoes, carrots, capsicum, and tomatoes in a spiced onion gravy.",
+    "prep_time": 15,
+    "cook_time": 20,
+    "servings": 2,
+    "difficulty": "Easy",
+    "image_url": "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=800&q=80",
+    "tags": ["vegetarian", "vegan", "high-fiber", "budget-friendly", "healthy"],
+    "estimated_cost": 70,
+    "ingredients": [
+      { "ingredient": "potato", "quantity": 150, "unit": "g" },
+      { "ingredient": "carrot", "quantity": 100, "unit": "g" },
+      { "ingredient": "capsicum", "quantity": 80, "unit": "g" },
+      { "ingredient": "onion", "quantity": 100, "unit": "g" },
+      { "ingredient": "tomato", "quantity": 120, "unit": "g" },
+      { "ingredient": "oil", "quantity": 10, "unit": "ml" }
+    ],
+    "steps": [
+      "Sauté onions and tomato spices.",
+      "Add diced veggies and steam until fork tender."
+    ],
+    "substitutions": [
+      { "from": "potato", "to": "paneer", "notes": "Replaces starchy vegetable with cottage cheese." }
+    ],
+    "improvements": [
+      { "action": "add_protein", "target": "paneer", "new_quantity": 100, "reason": "Adds 18g high quality protein." }
+    ]
+  }
+]
