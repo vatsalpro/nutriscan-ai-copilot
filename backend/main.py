@@ -4,7 +4,6 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config import settings
-from database.seed import seed_database
 from api import scan, recipes, pantry, nutrition, shopping, assistant
 
 # Configure logging
@@ -58,10 +57,8 @@ app.include_router(assistant.router)
 
 @app.on_event("startup")
 def on_startup():
-    logger.info("Initializing NutriScan Database & Seeding initial data...")
-    seed_database()
     from services.ai_router import ai_router
-    logger.info(f"NutriScan AI providers active: {ai_router.active}; providers={list(ai_router.configured_models.keys())}")
+    logger.info(f"NutriScan API ready. AI providers active: {ai_router.active}; providers={list(ai_router.configured_models.keys())}")
 
 @app.get("/")
 def root():
