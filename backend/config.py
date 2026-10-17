@@ -54,8 +54,15 @@ class Settings:
     PORT: int = int(os.getenv("PORT", 8000))
     HOST: str = os.getenv("HOST", "0.0.0.0")
 
-    default_db = "/tmp/nutriscan.db" if os.getenv("VERCEL") else "./nutriscan.db"
-    DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{default_db}")
+    _raw_db_url: str = os.getenv("DATABASE_URL", "").strip()
+    if os.getenv("VERCEL"):
+        # Vercel serverless functions have a read-only project filesystem; SQLite must live in /tmp
+        if not _raw_db_url or "./nutriscan.db" in _raw_db_url or _raw_db_url.endswith("/nutriscan.db"):
+            DATABASE_URL: str = "sqlite:////tmp/nutriscan.db"
+        else:
+            DATABASE_URL: str = _raw_db_url
+    else:
+        DATABASE_URL: str = _raw_db_url or f"sqlite:///{(BACKEND_DIR / 'nutriscan.db').as_posix()}"
 
 
 settings = Settings()
