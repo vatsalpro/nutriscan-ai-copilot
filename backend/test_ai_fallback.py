@@ -9,11 +9,12 @@ from unittest.mock import MagicMock, patch
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import requests
+from PIL import Image
 from fastapi.testclient import TestClient
 
-from config import settings
+from config import Settings, settings
 from main import app
-from services.ai_router import AIRouter, AIProviderError, AIRequestValidationError, ai_router
+from services.ai_router import AIRouter, AIProviderError, AIRequestValidationError
 from services.vision_service import vision_service
 
 
@@ -56,12 +57,12 @@ class TestSequentialAIFallback(unittest.TestCase):
         settings.OPENROUTER_API_KEY = "sk-or-v1-testopenrouterkey12345"
         settings.GROQ_API_KEY = "gsk_testgroqkey12345"
         settings.GEMINI_API_KEY = "AIzaTestGeminiKey12345"
-        settings.OPENROUTER_MODEL = "google/gemma-4-26b-a4b-it:free"
-        settings.OPENROUTER_VISION_MODEL = "google/gemma-4-26b-a4b-it:free"
-        settings.GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
-        settings.GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
-        settings.GEMINI_MODEL = "gemini-2.5-flash"
-        settings.GEMINI_VISION_MODEL = "gemini-2.5-flash"
+        settings.OPENROUTER_MODEL = "openrouter/free"
+        settings.OPENROUTER_VISION_MODEL = "openrouter/free"
+        settings.GROQ_MODEL = "qwen/qwen3.8-27b"
+        settings.GROQ_VISION_MODEL = "qwen/qwen3.8-27b"
+        settings.GEMINI_MODEL = "gemini-3.8-flash"
+        settings.GEMINI_VISION_MODEL = "gemini-3.8-flash"
 
     def tearDown(self):
         (
@@ -181,7 +182,6 @@ class TestSequentialAIFallback(unittest.TestCase):
             "substitutions": [],
         })
 
-        # OpenRouter returns empty string -> Groq returns malformed JSON -> Gemini returns valid JSON
         mock_post.side_effect = [
             _mock_http_response(200, _openai_payload("   ")),
             _mock_http_response(200, _openai_payload("{not valid json:")),
@@ -199,10 +199,11 @@ class TestSequentialAIFallback(unittest.TestCase):
     @patch("services.ai_router.requests.post")
     def test_6_image_recognition_payloads_and_vision_model_compatibility(self, mock_post):
         """6. Image recognition formats payloads per provider and skips incompatible text-only models."""
+        import asyncio
+
         fake_image = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00"
         expected_b64 = base64.b64encode(fake_image).decode("utf-8")
 
-        # Configure Groq with a text-only model so it is treated as unavailable for vision
         settings.GROQ_VISION_MODEL = "llama-3.3-70b-versatile"
 
         gemini_vision_json = json.dumps({
@@ -211,15 +212,11 @@ class TestSequentialAIFallback(unittest.TestCase):
             ]
         })
 
-        # OpenRouter returns unusable JSON (empty ingredients list), Groq is skipped due to text-only model,
-        # Gemini succeeds with proper inline_data image format.
         mock_post.side_effect = [
             _mock_http_response(200, _openai_payload(json.dumps({"ingredients": []}))),
             _mock_http_response(200, _gemini_payload(gemini_vision_json)),
         ]
 
-        scan_res = unittest.IsolatedAsyncioTestCase()
-        import asyncio
         result = asyncio.run(
             vision_service.scan_ingredients(fake_image, "tomatoes.jpg", mime_type="image/jpeg")
         )
@@ -228,10 +225,6 @@ class TestSequentialAIFallback(unittest.TestCase):
         self.assertIn("gemini", result["provider"])
         self.assertEqual(len(result["ingredients"]), 1)
         self.assertEqual(result["ingredients"][0]["name"], "tomato")
-
-        # Verify OpenRouter was called first with OpenAI data URL format,
-        # Groq was skipped without making a network request because its model was text-only,
-        # and Gemini was called with inline_data format.
         self.assertEqual(mock_post.call_count, 2)
 
         openrouter_body = mock_post.call_args_list[0][1]["json"]
@@ -250,7 +243,6 @@ class TestSequentialAIFallback(unittest.TestCase):
     @patch("services.ai_router.requests.post")
     def test_7_missing_api_keys_skip_only_affected_provider(self, mock_post):
         """7. Missing API keys skip only the affected provider and continue to the next configured provider."""
-        # Case A: OpenRouter key missing -> starts directly with Groq
         settings.OPENROUTER_API_KEY = ""
         mock_post.return_value = _mock_http_response(
             200, _openai_payload("Groq handled request directly.")
@@ -262,7 +254,6 @@ class TestSequentialAIFallback(unittest.TestCase):
         self.assertEqual(mock_post.call_count, 1)
         self.assertIn("api.groq.com", mock_post.call_args_list[0][0][0])
 
-        # Case B: Groq key missing, OpenRouter fails -> skips Groq and calls Gemini
         mock_post.reset_mock()
         settings.OPENROUTER_API_KEY = "sk-or-v1-testopenrouterkey12345"
         settings.GROQ_API_KEY = ""
@@ -291,6 +282,123 @@ class TestSequentialAIFallback(unittest.TestCase):
             self.router.image(b"123", "application/pdf", "Scan this")
 
         self.assertEqual(mock_post.call_count, 0)
+
+
+class TestDeploymentAndEndpoints(unittest.TestCase):
+    def setUp(self):
+        self.client = TestClient(app)
+
+    def test_health_and_root_endpoints_expose_no_secrets(self):
+        """Verify /, /api, /health, and /api/health work and never leak API keys."""
+        for path in ("/", "/api", "/api/"):
+            res = self.client.get(path)
+            self.assertEqual(res.status_code, 200)
+            body = res.json()
+            self.assertEqual(body["status"], "online")
+            self.assertIn("configured_models", body)
+            raw_str = json.dumps(body)
+            self.assertNotIn("sk-or-v1-", raw_str)
+            self.assertNotIn("gsk_", raw_str)
+            self.assertNotIn("AQ.", raw_str)
+
+        for path in ("/health", "/api/health"):
+            res = self.client.get(path)
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(res.json(), {"status": "ok"})
+
+    def test_cors_allows_configured_origins_and_rejects_wildcard(self):
+        """Verify CORS headers for allowed origins and ensure wildcard '*' is filtered out."""
+        with patch.dict(os.environ, {"ALLOWED_ORIGINS": "https://my-frontend.vercel.app/, *"}):
+            s = Settings()
+            origins = s.ALLOWED_ORIGINS
+            self.assertIn("https://my-frontend.vercel.app", origins)
+            self.assertNotIn("*", origins)
+            self.assertIn("http://localhost:5173", origins)
+
+        res = self.client.options(
+            "/api/health",
+            headers={
+                "Origin": "http://localhost:5173",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.headers.get("access-control-allow-origin"), "http://localhost:5173")
+
+    @patch("services.ai_router.requests.post")
+    def test_all_api_routes_with_mocked_ai(self, mock_post):
+        """Verify scan, recipes, pantry, nutrition, shopping, and assistant endpoints with mocked AI."""
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 64), color=(200, 100, 50)).save(buf, format="JPEG")
+        img_bytes = buf.getvalue()
+
+        # 1. /api/scan/ingredients
+        mock_post.return_value = _mock_http_response(
+            200,
+            _openai_payload(json.dumps({
+                "ingredients": [{"name": "spinach", "estimated_quantity": 100, "unit": "g", "confidence": 0.95}]
+            })),
+        )
+        r_scan = self.client.post("/api/scan/ingredients", files={"file": ("spinach.jpg", img_bytes, "image/jpeg")})
+        self.assertEqual(r_scan.status_code, 200)
+        self.assertEqual(r_scan.json()["ingredients"][0]["name"], "spinach")
+
+        # 2. /api/scan/meal
+        mock_post.return_value = _mock_http_response(
+            200,
+            _openai_payload(json.dumps({
+                "meal": {
+                    "meal_name": "Palak Paneer",
+                    "estimated_portion": "~300g",
+                    "confidence": 0.93,
+                    "portion_confidence": 0.85,
+                    "nutrition": {"calories": 420, "protein": 22, "carbs": 18, "fat": 28, "fiber": 6},
+                    "description": "Spinach and cottage cheese curry",
+                }
+            })),
+        )
+        r_meal = self.client.post("/api/scan/meal", files={"file": ("meal.jpg", img_bytes, "image/jpeg")})
+        self.assertEqual(r_meal.status_code, 200)
+        self.assertEqual(r_meal.json()["meal"]["meal_name"], "Palak Paneer")
+
+        # 3. /api/recipes/find + /api/recipes/{id} + /api/recipes/{id}/improve
+        mock_post.return_value = _mock_http_response(
+            200,
+            _openai_payload(json.dumps({
+                "name": "Quick Garlic Spinach Skillet",
+                "description": "Fast sauteed spinach",
+                "prep_time": 5,
+                "cook_time": 8,
+                "servings": 2,
+                "difficulty": "Easy",
+                "estimated_cost": 80.0,
+                "tags": ["AI Created", "Vegetarian", "Under 20 min"],
+                "ingredients": [{"ingredient": "spinach", "quantity": 150, "unit": "g"}],
+                "steps": ["Wash spinach", "Saute for 5 mins"],
+                "substitutions": [],
+            })),
+        )
+        r_find = self.client.post("/api/recipes/find", json={"ingredients": [{"name": "spinach", "quantity": 150, "unit": "g"}]})
+        self.assertEqual(r_find.status_code, 200)
+        rec_id = r_find.json()["recipes"][0]["id"]
+
+        r_det = self.client.get(f"/api/recipes/{rec_id}?servings=4")
+        self.assertEqual(r_det.status_code, 200)
+        self.assertEqual(r_det.json()["servings"], 4)
+
+        r_imp = self.client.post(f"/api/recipes/{rec_id}/improve", json={"servings": 2, "add_veggies": True})
+        self.assertEqual(r_imp.status_code, 200)
+        self.assertIn("improved_nutrition", r_imp.json())
+
+        # 4. /api/pantry, /api/nutrition/today, /api/shopping-list, /api/assistant/ask
+        self.assertEqual(self.client.get("/api/pantry").status_code, 200)
+        self.assertEqual(self.client.get("/api/nutrition/today").status_code, 200)
+        self.assertEqual(self.client.get("/api/shopping-list").status_code, 200)
+
+        mock_post.return_value = _mock_http_response(200, _openai_payload("Add lemon juice at the end."))
+        r_ast = self.client.post("/api/assistant/ask", json={"query": "How to keep spinach bright green?"})
+        self.assertEqual(r_ast.status_code, 200)
+        self.assertIn("lemon juice", r_ast.json()["answer"])
 
 
 if __name__ == "__main__":

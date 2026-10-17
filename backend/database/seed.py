@@ -1,8 +1,10 @@
 import json
-import os
-from sqlalchemy.orm import Session
+from pathlib import Path
 from database.database import engine, SessionLocal, Base
-from database.models import User, IngredientDB, RecipeDB, RecipeIngredientDB, PantryItem, ShoppingListItemDB, MealLogDB
+from database.models import User, IngredientDB, RecipeDB, RecipeIngredientDB, PantryItem, ShoppingListItemDB
+
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+
 
 def seed_database():
     Base.metadata.create_all(bind=engine)
@@ -10,15 +12,15 @@ def seed_database():
 
     try:
         # 1. Default User
-        user = db.query(User).filter_index_property if hasattr(db.query(User), 'filter_index_property') else db.query(User).first()
+        user = db.query(User).first()
         if not user:
             user = User(id=1, name="Hackathon Chef", email="chef@nutriscan.ai")
             db.add(user)
             db.commit()
 
         # 2. Seed Ingredients
-        ing_file = os.path.join(os.path.dirname(__file__), "..", "data", "ingredients.json")
-        if os.path.exists(ing_file):
+        ing_file = DATA_DIR / "ingredients.json"
+        if ing_file.exists():
             with open(ing_file, "r", encoding="utf-8") as f:
                 ingredients_data = json.load(f)
                 for item in ingredients_data:
@@ -41,8 +43,8 @@ def seed_database():
             db.commit()
 
         # 3. Seed Recipes
-        rec_file = os.path.join(os.path.dirname(__file__), "..", "data", "recipes.json")
-        if os.path.exists(rec_file):
+        rec_file = DATA_DIR / "recipes.json"
+        if rec_file.exists():
             with open(rec_file, "r", encoding="utf-8") as f:
                 recipes_data = json.load(f)
                 for rec in recipes_data:
@@ -64,8 +66,7 @@ def seed_database():
                             improvements_json=json.dumps(rec.get("improvements", []))
                         )
                         db.add(recipe)
-                        
-                        # Add Recipe Ingredients
+
                         for ing_item in rec.get("ingredients", []):
                             rec_ing = RecipeIngredientDB(
                                 recipe_id=rec["id"],
@@ -98,10 +99,9 @@ def seed_database():
             db.add(ShoppingListItemDB(user_id=1, ingredient="cumin", quantity=1, unit="tsp", purchased=False))
             db.add(ShoppingListItemDB(user_id=1, ingredient="coriander", quantity=1, unit="tbsp", purchased=False))
             db.commit()
-
-        print("Database seeded successfully!")
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     seed_database()

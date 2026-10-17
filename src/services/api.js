@@ -1,4 +1,12 @@
-const BASE_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
+export const resolveApiBaseUrl = (rawUrl) => {
+  const cleaned = (rawUrl || '').trim().replace(/\/+$/, '');
+  if (!cleaned || cleaned === '/api') return '/api';
+  return cleaned.endsWith('/api') ? cleaned : `${cleaned}/api`;
+};
+
+export const BASE_URL = resolveApiBaseUrl(
+  import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api'
+);
 
 const checkJsonResponse = async (res) => {
   if (!res || !res.ok) return null;

@@ -1,8 +1,17 @@
 import os
+import sys
+from pathlib import Path
+from contextlib import asynccontextmanager
 import uvicorn
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# Ensure backend directory is on sys.path for both local and Vercel serverless execution
+BACKEND_DIR = Path(__file__).resolve().parent
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+
 from config import settings
 from api import scan, recipes, pantry, nutrition, shopping, assistant
 
@@ -10,11 +19,25 @@ from api import scan, recipes, pantry, nutrition, shopping, assistant
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    from services.ai_router import ai_router
+    logger.info(
+        "NutriScan API ready. AI providers active: %s; providers=%s",
+        ai_router.active,
+        list(ai_router.configured_models.keys()),
+    )
+    yield
+
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    description="NutriScan API - AI Kitchen Copilot & Nutrition Engine"
+    description="NutriScan API - AI Kitchen Copilot & Nutrition Engine",
+    lifespan=lifespan,
 )
+
 
 # Security Headers Middleware
 @app.middleware("http")
@@ -27,20 +50,11 @@ async def add_security_headers(request, call_next):
     response.headers["Cache-Control"] = "no-store, max-age=0"
     return response
 
-# CORS setup
-allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
-origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
-if not origins:
-    origins = [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:4173",
-        "https://nutriscan-ai.vercel.app",
-    ]
 
+# CORS setup — uses explicit origin allowlist (never wildcard '*' with credentials)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
@@ -55,10 +69,6 @@ app.include_router(nutrition.router)
 app.include_router(shopping.router)
 app.include_router(assistant.router)
 
-@app.on_event("startup")
-def on_startup():
-    from services.ai_router import ai_router
-    logger.info(f"NutriScan API ready. AI providers active: {ai_router.active}; providers={list(ai_router.configured_models.keys())}")
 
 @app.get("/")
 @app.get("/api")
@@ -75,10 +85,12 @@ def root():
         "failover_enabled": True,
     }
 
+
 @app.get("/health")
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host=settings.HOST, port=settings.PORT, reload=True)

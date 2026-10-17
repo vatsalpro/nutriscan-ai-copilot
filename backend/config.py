@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from typing import List
 from dotenv import load_dotenv
 
 BACKEND_DIR = Path(__file__).resolve().parent
@@ -54,9 +55,36 @@ class Settings:
     PORT: int = int(os.getenv("PORT", 8000))
     HOST: str = os.getenv("HOST", "0.0.0.0")
 
+    DEFAULT_ORIGINS: List[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:4173",
+        "http://127.0.0.1:4173",
+        "https://nutriscan-ai.vercel.app",
+        "https://nutriscan-ai-copilot.vercel.app",
+    ]
+
+    @property
+    def ALLOWED_ORIGINS(self) -> List[str]:
+        raw = os.getenv("ALLOWED_ORIGINS", "")
+        env_origins = [
+            o.strip().rstrip("/")
+            for o in raw.split(",")
+            if o.strip() and o.strip() != "*"
+        ]
+        merged: List[str] = []
+        for origin in env_origins + self.DEFAULT_ORIGINS:
+            if origin and origin not in merged:
+                merged.append(origin)
+        return merged
+
     _raw_db_url: str = os.getenv("DATABASE_URL", "").strip()
+    if _raw_db_url.startswith("postgres://"):
+        _raw_db_url = _raw_db_url.replace("postgres://", "postgresql://", 1)
+
     if os.getenv("VERCEL"):
-        # Vercel serverless functions have a read-only project filesystem; SQLite must live in /tmp
+        # Vercel serverless functions have an ephemeral, read-only project filesystem;
+        # use /tmp/nutriscan.db unless an external managed DATABASE_URL is configured.
         if not _raw_db_url or "./nutriscan.db" in _raw_db_url or _raw_db_url.endswith("/nutriscan.db"):
             DATABASE_URL: str = "sqlite:////tmp/nutriscan.db"
         else:
