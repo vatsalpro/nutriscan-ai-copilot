@@ -1,31 +1,51 @@
-# NutriScan — Three AI failover setup (no Gemini)
+# NutriScan — Sequential Three-Provider AI Failover Setup
 
-NutriScan now uses this failover order:
+NutriScan uses a strictly sequential AI provider fallback system across all AI-powered features (ingredient image recognition, meal nutrition scan, AI recipe generation, and the AI kitchen assistant):
 
-1. **Groq — Meta Llama 4 Scout**
-   `meta-llama/llama-4-scout-17b-16e-instruct`
-2. **OpenRouter — Google Gemma 4 26B A4B free**
-   `google/gemma-4-26b-a4b-it:free`
-3. **OpenRouter Free Models Router**
-   `openrouter/free`
+1. **OpenRouter (Primary)**
+   - Model: `openrouter/free` (configurable via `OPENROUTER_MODEL` / `OPENROUTER_VISION_MODEL`)
+2. **Groq (Secondary Fallback)**
+   - Model: `qwen/qwen3.8-27b` (configurable via `GROQ_MODEL` / `GROQ_VISION_MODEL`)
+3. **Google Gemini (Final Fallback)**
+   - Model: `gemini-3.8-flash` (configurable via `GEMINI_MODEL` / `GEMINI_VISION_MODEL`)
 
-If #1 fails, the same request is sent to #2. If #2 fails, it is sent to #3.
-The OpenRouter free router chooses from currently available free models and filters for capabilities needed by the request, including image understanding when the request contains an image.
+## Failover Behavior
 
-## Vercel environment variables
+- Every AI request validates shared parameters first, then calls **OpenRouter** first.
+- If OpenRouter returns a valid, usable response, NutriScan returns it immediately without calling Groq or Gemini.
+- If OpenRouter fails, times out, returns an empty response, or returns malformed/unusable JSON, NutriScan automatically tries **Groq**.
+- If Groq also fails, NutriScan tries **Google Gemini**.
+- If all configured providers fail, NutriScan logs sanitized provider errors (never exposing API keys) and raises a clear error or falls back gracefully.
+- Missing API keys skip only the unconfigured provider and proceed to the next configured provider in order.
+
+## Backend & Vercel Environment Variables
+
+Configure these environment variables on your backend host (e.g., Vercel Project Settings → Environment Variables, Render, or `backend/.env` locally):
 
 ```env
-GROQ_API_KEY=your_groq_key
-GROQ_MODEL=meta-llama/llama-4-scout-17b-16e-instruct
-
-OPENROUTER_API_KEY=your_openrouter_key
-OPENROUTER_MODEL=google/gemma-4-26b-a4b-it:free
-OPENROUTER_FREE_MODEL=openrouter/free
+# 1) OpenRouter (Primary)
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+OPENROUTER_MODEL=openrouter/free
+OPENROUTER_VISION_MODEL=openrouter/free
 OPENROUTER_SITE_URL=https://nutriscan-ai.vercel.app
+
+# 2) Groq (Secondary Fallback)
+GROQ_API_KEY=your_groq_api_key_here
+GROQ_MODEL=qwen/qwen3.8-27b
+GROQ_VISION_MODEL=qwen/qwen3.8-27b
+
+# 3) Google Gemini (Final Fallback)
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-3.8-flash
+GEMINI_VISION_MODEL=gemini-3.8-flash
+
+# Timeout & Server Settings
+AI_TIMEOUT_SECONDS=20
+PORT=8000
+HOST=0.0.0.0
 ```
 
-Only server-side Vercel environment variables are needed. Do not expose API keys in client-side code.
+## Security Notice
 
-## Important
-
-Free hosted inference still has rate limits. This architecture improves resilience by using multiple providers/models, but it cannot guarantee unlimited free inference.
+- Read API keys exclusively from backend environment variables.
+- Never expose `OPENROUTER_API_KEY`, `GROQ_API_KEY`, or `GEMINI_API_KEY` in frontend `VITE_*` variables, API responses, browser logs, or Git commits.

@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 from database.models import RecipeDB, RecipeIngredientDB, PantryItem
@@ -10,6 +11,7 @@ from services.ai_router import ai_router
 
 logger = logging.getLogger(__name__)
 
+
 class RecipeService:
     @staticmethod
     def find_recipes(
@@ -19,18 +21,20 @@ class RecipeService:
         include_pantry: bool = True
     ) -> List[Dict[str, Any]]:
         """
-        Finds and scores recipes based on available ingredients.
+        Finds and scores recipes based on scanned user ingredients and available pantry items.
+        Prioritizes recipes that match the user's directly scanned/entered ingredients.
         """
         if filters is None:
             filters = {}
 
-        # Collect normalized user ingredient names
+        scanned_set = set()
         available_set = set()
         use_soon_set = set()
 
-        for item in user_ingredients:
+        for item in user_ingredients or []:
             name = str(item.get("name") or item.get("ingredient") or "").lower().strip()
             if name:
+                scanned_set.add(name)
                 available_set.add(name)
 
         if include_pantry:
@@ -43,8 +47,16 @@ class RecipeService:
 
         all_recipes = db.query(RecipeDB).all()
         results = []
+        seen_names = set()
+
+        # Sort so newest AI recipes come first before deduplication
+        all_recipes.sort(key=lambda r: (0 if r.id.startswith("ai-recipe-") else 1, r.id), reverse=False)
 
         for rec in all_recipes:
+            norm_title = (rec.name or "").strip().lower()
+            if norm_title in seen_names:
+                continue
+
             rec_ings = db.query(RecipeIngredientDB).filter(RecipeIngredientDB.recipe_id == rec.id).all()
             total_req = len(rec_ings)
             if total_req == 0:
@@ -53,6 +65,7 @@ class RecipeService:
             available_list = []
             missing_list = []
             matched_count = 0
+            scanned_match_count = 0
             use_soon_matches = 0
 
             for req in rec_ings:
@@ -63,7 +76,20 @@ class RecipeService:
                     "unit": req.unit
                 }
 
-                if req_name in available_set:
+                is_scanned_match = any(
+                    req_name == s or s in req_name or req_name in s
+                    for s in scanned_set
+                ) if scanned_set else False
+
+                is_available_match = is_scanned_match or any(
+                    req_name == a or a in req_name or req_name in a
+                    for a in available_set
+                )
+
+                if is_scanned_match:
+                    scanned_match_count += 1
+
+                if is_available_match:
                     matched_count += 1
                     available_list.append(req_dict)
                     if req_name in use_soon_set:
@@ -71,58 +97,59 @@ class RecipeService:
                 else:
                     missing_list.append(req_dict)
 
-            # Match Percentage Calculation
             raw_match_ratio = matched_count / total_req
             match_percentage = int(raw_match_ratio * 100)
 
-            # Boost priority if uses expiring/use-soon ingredients
-            boosted_score = match_percentage + (use_soon_matches * 5)
+            scanned_ratio = (scanned_match_count / len(scanned_set)) if scanned_set else 0.0
+            boosted_score = (
+                match_percentage
+                + int(scanned_ratio * 100)
+                + (scanned_match_count * 35)
+                + (use_soon_matches * 5)
+            )
 
-            # Check Filters
             tags = json.loads(rec.tags_json) if rec.tags_json else []
+            tags_lower = [str(t).lower().strip() for t in tags]
             total_time = rec.prep_time + rec.cook_time
 
-            # Filter: Under 20 mins
             if filters.get("under_20") and total_time > 20:
                 continue
-            # Filter: Under 30 mins
             if filters.get("under_30") and total_time > 30:
                 continue
-            # Filter: Vegetarian
-            if filters.get("vegetarian") and "vegetarian" not in tags and "vegan" not in tags:
+            if filters.get("vegetarian") and "vegetarian" not in tags_lower and "vegan" not in tags_lower:
                 continue
-            # Filter: Vegan
-            if filters.get("vegan") and "vegan" not in tags:
-                continue
-            # Filter: Budget max
-            max_budget = filters.get("max_budget")
-            if max_budget and rec.estimated_cost > float(max_budget):
+            if filters.get("vegan") and "vegan" not in tags_lower:
                 continue
 
-            # Calculate Nutrition
             nutr = nutrition_service.calculate_recipe_nutrition(
-                db, 
+                db,
                 [{"ingredient": r.ingredient, "quantity": r.quantity, "unit": r.unit} for r in rec_ings],
                 servings=rec.servings
             )
             per_serving = nutr["per_serving"]
 
-            # Filter: High Protein (>20g)
-            if filters.get("high_protein") and per_serving["protein"] < 20.0:
+            cost_data = cost_service.calculate_recipe_cost(
+                db,
+                [{"ingredient": r.ingredient, "quantity": r.quantity, "unit": r.unit} for r in rec_ings],
+                default_cost=rec.estimated_cost
+            )
+            total_cost = cost_data["estimated_cost_total"]
+
+            if filters.get("budget") and total_cost > 120.0:
                 continue
-            # Filter: Low Calorie (<450 kcal)
+            max_budget = filters.get("max_budget")
+            if max_budget and total_cost > float(max_budget):
+                continue
+
+            if filters.get("high_protein") and per_serving["protein"] < 18.0 and "high protein" not in tags_lower:
+                continue
             if filters.get("low_calorie") and per_serving["calories"] > 450.0:
                 continue
-            # Filter: High Fiber (>5g)
             if filters.get("high_fiber") and per_serving["fiber"] < 5.0:
                 continue
 
             health_score_data = scoring_service.calculate_health_score(per_serving)
-            cost_data = cost_service.calculate_recipe_cost(
-                db, 
-                [{"ingredient": r.ingredient, "quantity": r.quantity, "unit": r.unit} for r in rec_ings],
-                default_cost=rec.estimated_cost
-            )
+            seen_names.add(norm_title)
 
             results.append({
                 "id": rec.id,
@@ -135,10 +162,11 @@ class RecipeService:
                 "difficulty": rec.difficulty,
                 "image_url": rec.image_url,
                 "tags": tags,
-                "estimated_cost": cost_data["estimated_cost_total"],
-                "cost_per_serving": round(cost_data["estimated_cost_total"] / rec.servings, 1),
+                "estimated_cost": total_cost,
+                "cost_per_serving": round(total_cost / max(1, rec.servings), 1),
                 "match_percentage": match_percentage,
                 "boosted_score": boosted_score,
+                "scanned_match_count": scanned_match_count,
                 "available_count": matched_count,
                 "total_required": total_req,
                 "match_summary": f"{matched_count} of {total_req} ingredients available",
@@ -149,8 +177,14 @@ class RecipeService:
                 "health_score": health_score_data
             })
 
-        # Sort by boosted score desc, then match_percentage desc
-        results.sort(key=lambda x: (x["boosted_score"], x["match_percentage"]), reverse=True)
+        results.sort(
+            key=lambda x: (
+                1 if x["scanned_match_count"] > 0 else 0,
+                x["boosted_score"],
+                x["match_percentage"]
+            ),
+            reverse=True
+        )
         return results
 
     @staticmethod
@@ -168,7 +202,7 @@ class RecipeService:
             available_set.add(p.ingredient.lower().strip())
 
         rec_ings = db.query(RecipeIngredientDB).filter(RecipeIngredientDB.recipe_id == rec.id).all()
-        
+
         target_servings = servings if (servings and servings > 0) else rec.servings
         scaling_ratio = target_servings / float(rec.servings)
 
@@ -180,7 +214,10 @@ class RecipeService:
         for req in rec_ings:
             req_name = req.ingredient.lower().strip()
             scaled_qty = round(req.quantity * scaling_ratio, 1)
-            is_available = req_name in available_set
+            is_available = any(
+                req_name == a or a in req_name or req_name in a
+                for a in available_set if a
+            )
             if is_available:
                 available_count += 1
 
@@ -234,26 +271,24 @@ class RecipeService:
     @staticmethod
     def generate_and_save_ai_recipe(db: Session, user_ingredients: List[Dict[str, Any]], prompt_hint: str = None) -> Dict[str, Any]:
         """
-        Uses a three-provider AI failover stack to invent a brand new custom recipe based on user's available ingredients,
-        saves it permanently to the SQLite database (recipes and recipe_ingredients tables),
-        and returns the full recipe details object.
+        Uses the sequential three-provider AI failover stack (OpenRouter -> Groq -> Gemini)
+        to invent a custom recipe centered on the user's scanned ingredients,
+        saves it to SQLite, and returns the full recipe details object.
         """
-        import time, json
-        from config import settings
-
         ing_items = []
-        for i in user_ingredients:
+        for i in user_ingredients or []:
             name = str(i.get("name") or i.get("ingredient") or "").strip().lower()
             if name:
                 qty = float(i.get("estimated_quantity") or i.get("quantity") or 100)
                 unit = str(i.get("unit") or "g")
                 ing_items.append({"ingredient": name, "quantity": qty, "unit": unit})
 
-        pantry_items = db.query(PantryItem).all()
-        for p in pantry_items:
-            p_name = p.ingredient.lower().strip()
-            if p_name not in [x["ingredient"] for x in ing_items]:
-                ing_items.append({"ingredient": p_name, "quantity": 100, "unit": "g"})
+        if not ing_items:
+            pantry_items = db.query(PantryItem).all()
+            for p in pantry_items:
+                p_name = p.ingredient.lower().strip()
+                if p_name not in [x["ingredient"] for x in ing_items]:
+                    ing_items.append({"ingredient": p_name, "quantity": 100, "unit": "g"})
 
         ing_names_list = [x["ingredient"] for x in ing_items]
         ing_str = ", ".join(ing_names_list) if ing_names_list else "paneer, tomato, onion, capsicum, spinach"
@@ -262,119 +297,113 @@ class RecipeService:
 
         hint_text = f" User flavor/style request: '{prompt_hint}'" if prompt_hint else ""
 
-        system_prompt = f"""You are a Master Culinary Chef AI.
-Invent a completely unique, delicious, authentic, and healthy recipe using these available ingredients: [{ing_str}].{hint_text}
-Requirements:
-1. You MUST include these key ingredients [{ing_str}] in the recipe.
-2. Provide step-by-step cooking instructions.
-3. Make it genuinely healthy: favor vegetables, lean protein, fibre, and modest oil.
-
-Return ONLY a valid JSON object matching this schema exactly:
-{{
-  "name": "Chef AI Spiced {primary_name.title()} & {secondary_name.title() if secondary_name else 'Veggies'} Medley",
-  "description": "A vibrant, aromatic dish featuring fresh {primary_name} cooked with wholesome ingredients and authentic spices.",
-  "prep_time": 10,
-  "cook_time": 15,
-  "servings": 2,
-  "difficulty": "Easy",
-  "estimated_cost": 120.0,
-  "tags": ["AI Created", "Healthy", "Custom Recipe", "High Protein"],
-  "ingredients": [
-    {{"ingredient": "{primary_name}", "quantity": 200, "unit": "g"}}
-  ],
-  "steps": [
-    "Prepare all ingredients into bite-sized pieces.",
-    "Heat oil in a heavy skillet over medium-high heat.",
-    "Add main ingredients and cook until tender and fragrant.",
-    "Season lightly with salt, pepper, and serve hot."
-  ],
-  "substitutions": []
-}}"""
-
         generated_data = None
         try:
             if ai_router.active:
-                recipe_prompt = f"""Create ONE genuinely useful recipe using these available ingredients:
-[{ing_str}].
-{hint_text}
+                recipe_prompt = f"""Create ONE delicious, practical home-cooked recipe centered around these exact user ingredients: [{ing_str}].{hint_text}
 
 Requirements:
-1. Prefer ingredients the user already has.
-2. You may add a small number of common pantry staples such as salt, pepper, oil, water or basic spices.
-3. Give realistic quantities and step-by-step instructions.
-4. Make it practical for a home kitchen.
-5. Return ONLY valid JSON.
-
-Schema:
+1. Every ingredient in [{ing_str}] MUST be used in the "ingredients" list.
+2. Do NOT add unrelated main ingredients. You may only add 1-2 basic seasonings (like salt, black pepper, olive oil, or honey/lemon if appropriate).
+3. Keep prep_time + cook_time under 20 minutes if possible.
+4. Return ONLY valid, compact JSON matching this exact schema (no markdown, no extra commentary):
 {{
-  "name": "Creative recipe name",
-  "description": "Short description",
-  "prep_time": 10,
-  "cook_time": 15,
+  "name": "Creative recipe title featuring {primary_name.title()}",
+  "description": "One sentence appetizing description.",
+  "prep_time": 8,
+  "cook_time": 10,
   "servings": 2,
   "difficulty": "Easy",
-  "estimated_cost": 120.0,
-  "tags": ["AI Created", "Healthy"],
+  "estimated_cost": 95.0,
+  "tags": ["AI Created", "Healthy", "Vegetarian", "Under 20 min"],
   "ingredients": [
-    {{"ingredient": "ingredient name", "quantity": 100, "unit": "g"}}
+    {{"ingredient": "{primary_name}", "quantity": 150, "unit": "g"}}
   ],
-  "steps": ["Step 1", "Step 2"],
+  "steps": [
+    "Step 1 instruction.",
+    "Step 2 instruction.",
+    "Step 3 instruction."
+  ],
   "substitutions": []
 }}"""
+
+                def _validate_recipe(data: Any) -> bool:
+                    return (
+                        isinstance(data, dict)
+                        and isinstance(data.get("name"), str)
+                        and bool(data["name"].strip())
+                        and isinstance(data.get("ingredients"), list)
+                        and len(data["ingredients"]) > 0
+                        and isinstance(data.get("steps"), list)
+                        and len(data["steps"]) > 0
+                    )
+
                 result = ai_router.json_text(
                     recipe_prompt,
-                    system="You are NutriScan's expert AI recipe generator. Generate safe, practical culinary recipes.",
-                    max_tokens=1400,
+                    system="You are NutriScan's culinary chef AI. Output strictly valid JSON only.",
+                    max_tokens=600,
+                    validator=_validate_recipe,
                 )
                 generated_data = result["json"]
                 logger.info("AI recipe generated by %s/%s", result["provider"], result["model"])
         except Exception as exc:
-            logger.warning("All AI recipe providers failed: %s", exc)
+            logger.warning("All AI recipe providers failed: %s", ai_router._sanitize_error(exc))
 
         if not generated_data or "name" not in generated_data:
             recipe_title = f"Chef AI {primary_name.title()}"
             if secondary_name:
-                recipe_title += f" & {secondary_name.title()} Medley"
+                recipe_title += f" & {secondary_name.title()} Bowl"
             else:
-                recipe_title += " Special Skillet"
+                recipe_title += " Fresh Medley"
 
-            fallback_ingredients = []
-            for item in ing_items:
-                fallback_ingredients.append({
+            fallback_ingredients = [
+                {
                     "ingredient": item["ingredient"],
                     "quantity": item["quantity"],
                     "unit": item["unit"]
-                })
-
+                }
+                for item in ing_items
+            ]
             if not fallback_ingredients:
                 fallback_ingredients = [{"ingredient": primary_name, "quantity": 200, "unit": "g"}]
 
             generated_data = {
                 "name": recipe_title,
-                "description": f"A fresh, balanced custom recipe crafted by NutriScan AI using your scanned {ing_str}.",
-                "prep_time": 10,
-                "cook_time": 15,
+                "description": f"A fresh, balanced custom recipe crafted around your {ing_str}.",
+                "prep_time": 8,
+                "cook_time": 10,
                 "servings": 2,
                 "difficulty": "Easy",
-                "estimated_cost": 120.0,
-                "tags": ["AI Created", "Healthy", "Balanced", "Quick & Easy"],
+                "estimated_cost": 95.0,
+                "tags": ["AI Created", "Healthy", "Vegetarian", "Under 20 min"],
                 "ingredients": fallback_ingredients,
                 "steps": [
-                    f"Wash and chop the {ing_str} into bite-sized pieces.",
-                    "Heat 1 tbsp oil in a skillet over medium heat.",
-                    f"Add {primary_name} and sear until golden and fragrant (4-5 mins).",
-                    f"Incorporate {secondary_name if secondary_name else 'the remaining ingredients'} and stir-fry until tender.",
-                    "Season with salt, black pepper, and serve hot immediately!"
+                    f"Prepare and portion the {ing_str} into bite-sized pieces.",
+                    f"Combine {primary_name} in a pan or bowl over gentle heat for 5-8 minutes.",
+                    f"Fold in {secondary_name if secondary_name else 'seasonings'} until aromatic and well combined.",
+                    "Plate warm and enjoy your fresh, nutrient-rich dish!"
                 ],
                 "substitutions": []
             }
 
+        gen_ings = generated_data.get("ingredients") or []
+        existing_gen_names = {
+            str(x.get("ingredient") or x.get("name") or "").lower().strip()
+            for x in gen_ings if isinstance(x, dict)
+        }
+        for user_item in ing_items:
+            u_name = user_item["ingredient"]
+            if not any(u_name == g or u_name in g or g in u_name for g in existing_gen_names if g):
+                gen_ings.append(user_item)
+        generated_data["ingredients"] = gen_ings
+
         recipe_id = f"ai-recipe-{time.time_ns()}"
-        tags = generated_data.get("tags", ["AI Created"])
+        tags = generated_data.get("tags", ["AI Created", "Healthy", "Vegetarian"])
+        if not isinstance(tags, list):
+            tags = ["AI Created", "Healthy"]
         if "AI Created" not in tags:
             tags.insert(0, "AI Created")
 
-        # Pick appropriate food image based on primary ingredient
         img_url = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80"
         if "chicken" in primary_name:
             img_url = "https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?auto=format&fit=crop&w=800&q=80"
@@ -384,20 +413,22 @@ Schema:
             img_url = "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?auto=format&fit=crop&w=800&q=80"
         elif "rice" in primary_name:
             img_url = "https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=800&q=80"
-        elif "fish" in primary_name or "prawn" in primary_name:
+        elif "fish" in primary_name or "salmon" in primary_name or "prawn" in primary_name:
             img_url = "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&w=800&q=80"
+        elif any(f in primary_name for f in ("apple", "banana", "berry", "strawberry", "mango", "dragonfruit", "oats")):
+            img_url = "https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?auto=format&fit=crop&w=800&q=80"
 
         new_rec = RecipeDB(
             id=recipe_id,
             name=generated_data.get("name", f"AI {primary_name.title()} Recipe"),
             description=generated_data.get("description", "A custom recipe generated by NutriScan AI."),
-            prep_time=int(generated_data.get("prep_time", 10)),
-            cook_time=int(generated_data.get("cook_time", 15)),
-            servings=int(generated_data.get("servings", 2)),
+            prep_time=int(generated_data.get("prep_time", 8)),
+            cook_time=int(generated_data.get("cook_time", 10)),
+            servings=max(1, int(generated_data.get("servings", 2))),
             difficulty=generated_data.get("difficulty", "Easy"),
             image_url=img_url,
             tags_json=json.dumps(tags),
-            estimated_cost=float(generated_data.get("estimated_cost", 120.0)),
+            estimated_cost=float(generated_data.get("estimated_cost", 95.0)),
             steps_json=json.dumps(generated_data.get("steps", [])),
             substitutions_json=json.dumps(generated_data.get("substitutions", [])),
             improvements_json=json.dumps([])
@@ -406,10 +437,17 @@ Schema:
         db.commit()
 
         for ing_item in generated_data.get("ingredients", []):
+            ing_name = str(ing_item.get("ingredient") or ing_item.get("name") or "").lower().strip()
+            if not ing_name:
+                continue
+            try:
+                qty_val = float(ing_item.get("quantity") or ing_item.get("estimated_quantity") or 100)
+            except (TypeError, ValueError):
+                qty_val = 100.0
             rec_ing = RecipeIngredientDB(
                 recipe_id=recipe_id,
-                ingredient=str(ing_item.get("ingredient") or ing_item.get("name") or "").lower().strip(),
-                quantity=float(ing_item.get("quantity") or ing_item.get("estimated_quantity") or 100),
+                ingredient=ing_name,
+                quantity=qty_val,
                 unit=str(ing_item.get("unit") or "g")
             )
             db.add(rec_ing)
@@ -417,5 +455,5 @@ Schema:
 
         return RecipeService.get_recipe_details(db, recipe_id=recipe_id, user_ingredients=user_ingredients)
 
-recipe_service = RecipeService()
 
+recipe_service = RecipeService()

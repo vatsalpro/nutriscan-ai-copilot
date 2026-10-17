@@ -65,6 +65,7 @@ async def ask_assistant(req: AssistantRequest, db: Session = Depends(get_db)):
 
     if ai_router.active:
         try:
+            effective_query = query or "Give me a quick healthy cooking tip based on my available ingredients."
             system = """You are NutriScan AI Kitchen Assistant.
 Give concise, practical cooking guidance based on the user's context.
 Do not provide medical diagnosis, treatment, or prescriptions.
@@ -75,7 +76,7 @@ Prefer 2-4 useful bullets or a short paragraph."""
 {ing_context}
 
 User question:
-{query}"""
+{effective_query}"""
             result = ai_router.text(prompt, system=system, max_tokens=450)
             response_text = result["text"]
             if response_text:
@@ -88,7 +89,7 @@ User question:
                     "fallback": result["is_fallback"],
                 }
         except Exception as exc:
-            logger.exception("All AI assistant providers failed: %s", exc)
+            logger.warning("All AI assistant providers failed: %s", ai_router._sanitize_error(exc))
 
     # Explicit fallback for temporary inference outages.
     q = query.lower()

@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
+import threading
 
 from database.database import get_db
 from database.models import IngredientDB, RecipeDB, RecipeIngredientDB
@@ -13,10 +14,17 @@ from services.scoring_service import scoring_service
 
 router = APIRouter(prefix="/api/recipes", tags=["recipes"])
 
+# Cache mapping sorted scanned ingredient names -> generated AI recipe ID
+# Prevents duplicate AI calls when React StrictMode double-mounts or user toggles filters
+_AI_RECIPE_CACHE: Dict[Tuple[str, ...], str] = {}
+_AI_GEN_LOCK = threading.Lock()
+
+
 class FindRecipesRequest(BaseModel):
     ingredients: List[Dict[str, Any]] = []
     filters: Optional[Dict[str, Any]] = {}
     include_pantry: Optional[bool] = True
+
 
 class ImproveMealRequest(BaseModel):
     servings: Optional[int] = 2
@@ -25,6 +33,7 @@ class ImproveMealRequest(BaseModel):
     boost_protein: Optional[bool] = False
     substitutions: Optional[Dict[str, str]] = {}
 
+
 @router.post("/find")
 def find_recipes(req: FindRecipesRequest, db: Session = Depends(get_db)):
     scanned_names = {
@@ -32,6 +41,7 @@ def find_recipes(req: FindRecipesRequest, db: Session = Depends(get_db)):
         for item in req.ingredients
     }
     scanned_names.discard("")
+    cache_key = tuple(sorted(scanned_names))
 
     # Ensure all user/scanned ingredients exist in IngredientDB with default nutrition
     unknown_names = []
@@ -43,25 +53,44 @@ def find_recipes(req: FindRecipesRequest, db: Session = Depends(get_db)):
             unknown_names.append(name)
             nutrition_service.ensure_ingredient_exists(db, name, unit="g")
 
-    generated_recipe = None
-    if req.ingredients:
-        # Check if an AI recipe for these exact ingredients was already created in DB
-        existing_ai_recipe = None
-        all_ai_recipes = db.query(RecipeDB).filter(RecipeDB.id.like("ai-recipe-%")).all()
-        for rec in all_ai_recipes:
-            rec_ings = db.query(RecipeIngredientDB).filter(RecipeIngredientDB.recipe_id == rec.id).all()
-            rec_ing_names = set(r.ingredient.lower().strip() for r in rec_ings)
-            if scanned_names and scanned_names == rec_ing_names:
-                existing_ai_recipe = rec
-                break
+    pinned_ai_recipe_id = None
+    ai_recipe_generated = False
 
-        # If not generated yet for this exact ingredient set, generate & save a brand new AI recipe into SQLite DB!
-        if not existing_ai_recipe:
-            generated_recipe = recipe_service.generate_and_save_ai_recipe(
-                db,
-                user_ingredients=req.ingredients,
-                prompt_hint="Create an exciting, healthy new custom recipe featuring these exact user ingredients."
-            )
+    if scanned_names:
+        with _AI_GEN_LOCK:
+            cached_id = _AI_RECIPE_CACHE.get(cache_key)
+            if cached_id:
+                exists_in_db = db.query(RecipeDB).filter(RecipeDB.id == cached_id).first()
+                if exists_in_db:
+                    pinned_ai_recipe_id = cached_id
+                    ai_recipe_generated = True
+
+            if not pinned_ai_recipe_id:
+                all_ai_recipes = (
+                    db.query(RecipeDB)
+                    .filter(RecipeDB.id.like("ai-recipe-%"))
+                    .order_by(RecipeDB.id.desc())
+                    .all()
+                )
+                for rec in all_ai_recipes:
+                    rec_ings = db.query(RecipeIngredientDB).filter(RecipeIngredientDB.recipe_id == rec.id).all()
+                    rec_ing_names = {r.ingredient.lower().strip() for r in rec_ings}
+                    if scanned_names.issubset(rec_ing_names) and len(rec_ing_names) <= len(scanned_names) + 3:
+                        pinned_ai_recipe_id = rec.id
+                        _AI_RECIPE_CACHE[cache_key] = rec.id
+                        ai_recipe_generated = True
+                        break
+
+            if not pinned_ai_recipe_id:
+                generated_recipe = recipe_service.generate_and_save_ai_recipe(
+                    db,
+                    user_ingredients=req.ingredients,
+                    prompt_hint="Create an exciting, healthy custom recipe featuring these exact user ingredients."
+                )
+                if generated_recipe and generated_recipe.get("id"):
+                    pinned_ai_recipe_id = generated_recipe["id"]
+                    _AI_RECIPE_CACHE[cache_key] = pinned_ai_recipe_id
+                    ai_recipe_generated = True
 
     results = recipe_service.find_recipes(
         db,
@@ -70,19 +99,16 @@ def find_recipes(req: FindRecipesRequest, db: Session = Depends(get_db)):
         include_pantry=req.include_pantry
     )
 
-    if generated_recipe:
-        generated_id = generated_recipe["id"]
-        # Pin the newly generated AI recipe to the very top!
-        results.sort(key=lambda recipe: recipe["id"] != generated_id)
+    if pinned_ai_recipe_id:
+        results.sort(key=lambda recipe: 0 if recipe["id"] == pinned_ai_recipe_id else 1)
 
     return {
         "count": len(results),
         "recipes": results,
-        "ai_recipe_generated": generated_recipe is not None or len([r for r in results if r['id'].startswith('ai-recipe-')]) > 0,
-        "generated_recipe_id": generated_recipe["id"] if generated_recipe else (results[0]["id"] if results else None),
+        "ai_recipe_generated": ai_recipe_generated,
+        "generated_recipe_id": pinned_ai_recipe_id or (results[0]["id"] if results else None),
         "new_ingredients": unknown_names,
     }
-
 
 
 @router.get("/{recipe_id}")
@@ -96,12 +122,9 @@ def get_recipe(
         raise HTTPException(status_code=404, detail="Recipe not found.")
     return details
 
+
 @router.post("/{recipe_id}/improve")
 def improve_meal(recipe_id: str, req: ImproveMealRequest, db: Session = Depends(get_db)):
-    """
-    Improves recipe health profile by optimizing oil/fat, adding fresh veggies, or swapping ingredients.
-    Returns comparison between original and improved macro values.
-    """
     recipe_data = recipe_service.get_recipe_details(db, recipe_id=recipe_id, servings=req.servings)
     if not recipe_data:
         raise HTTPException(status_code=404, detail="Recipe not found.")
@@ -110,7 +133,6 @@ def improve_meal(recipe_id: str, req: ImproveMealRequest, db: Session = Depends(
     original_nutrition = recipe_data["per_serving_nutrition"]
     original_health = recipe_data["health_score"]
 
-    # Clone ingredient table
     modified_ingredients = []
     applied_changes = []
 
@@ -119,13 +141,11 @@ def improve_meal(recipe_id: str, req: ImproveMealRequest, db: Session = Depends(
         qty = item["required_quantity"]
         unit = item["unit"]
 
-        # 1. Option: Reduce oil / fat by half
         if req.reduce_oil and ing_name in ["oil", "butter"]:
             new_qty = max(2.0, round(qty * 0.5, 1))
             applied_changes.append(f"Reduced {item['ingredient']} from {qty}{unit} to {new_qty}{unit} (-50% fat)")
             qty = new_qty
 
-        # 2. Option: Substitutions
         if req.substitutions and ing_name in req.substitutions:
             sub_to = req.substitutions[ing_name]
             applied_changes.append(f"Substituted {item['ingredient']} with {sub_to.capitalize()}")
@@ -137,7 +157,6 @@ def improve_meal(recipe_id: str, req: ImproveMealRequest, db: Session = Depends(
             "unit": unit
         })
 
-    # 3. Option: Add green veggies if requested
     if req.add_veggies:
         modified_ingredients.append({
             "ingredient": "spinach",
@@ -146,7 +165,6 @@ def improve_meal(recipe_id: str, req: ImproveMealRequest, db: Session = Depends(
         })
         applied_changes.append("Added 100g fresh spinach (+2.2g fiber, rich in iron & vitamins)")
 
-    # 4. Option: Boost protein
     if req.boost_protein:
         modified_ingredients.append({
             "ingredient": "chickpeas",
@@ -155,17 +173,14 @@ def improve_meal(recipe_id: str, req: ImproveMealRequest, db: Session = Depends(
         })
         applied_changes.append("Added 80g boiled chickpeas (+7g clean protein)")
 
-    # Recalculate nutrition
     improved_nutr = nutrition_service.calculate_recipe_nutrition(db, modified_ingredients, servings=servings)
     improved_per_serving = improved_nutr["per_serving"]
     improved_health = scoring_service.calculate_health_score(improved_per_serving)
 
-    # Calculate percentage improvements
-    cal_diff_pct = round(((improved_per_serving["calories"] - original_nutrition["calories"]) / original_nutrition["calories"]) * 100, 1)
+    cal_diff_pct = round(((improved_per_serving["calories"] - original_nutrition["calories"]) / max(1.0, original_nutrition["calories"])) * 100, 1)
     protein_diff_pct = round(((improved_per_serving["protein"] - original_nutrition["protein"]) / max(1.0, original_nutrition["protein"])) * 100, 1)
     fiber_diff_pct = round(((improved_per_serving["fiber"] - original_nutrition["fiber"]) / max(0.5, original_nutrition["fiber"])) * 100, 1)
 
-    # Generate AI Chef Tip
     ai_chef_tip = "These simple tweaks lower overall saturated fat and boost dietary fiber without compromising authentic flavor."
 
     return {
