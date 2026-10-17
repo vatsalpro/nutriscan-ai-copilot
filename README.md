@@ -24,7 +24,7 @@
 7. [Environment Variables Configuration](#-environment-variables-configuration)
 8. [API Reference](#-api-reference)
 9. [Testing & Verification](#-testing--verification)
-10. [Deployment Guide (Vercel / Render)](#-deployment-guide-vercel--render)
+10. [Deployment Guide (Two Separate Vercel Projects)](#-deployment-guide-two-separate-vercel-projects)
 11. [Security & Disclaimers](#️-security--disclaimers)
 
 ---
@@ -170,7 +170,7 @@ flowchart TD
 | **Backend** | Python 3.10+, FastAPI, Uvicorn, Pydantic v2, Requests, Pillow |
 | **Database** | SQLite (`nutriscan.db`), SQLAlchemy 2.0 ORM |
 | **AI Providers** | OpenRouter (`openrouter/free`), Groq (`qwen/qwen3.8-27b`), Google Gemini (`gemini-3.8-flash`) |
-| **Deployment** | Vercel (`vercel.json` + `/api/index.py` serverless entrypoint) / Netlify |
+| **Deployment** | Two Separate Vercel Projects: Frontend (`vercel.json`, Vite SPA) + Backend (`backend/vercel.json`, FastAPI) |
 
 ---
 
@@ -178,11 +178,9 @@ flowchart TD
 
 ```text
 nutriscan-ai-copilot/
-├── api/
-│   └── index.py                     # Vercel serverless FastAPI entrypoint
 ├── backend/
 │   ├── api/
-│   │   ├── assistant.py             # POST /api/assistant/ask (AI Kitchen Assistant)
+│   │   ├── assistant.py             # POST /api/assistant/ask & /api/assistant/chat
 │   │   ├── nutrition.py             # GET /api/nutrition/today, POST /api/meals
 │   │   ├── pantry.py                # CRUD /api/pantry
 │   │   ├── recipes.py               # POST /api/recipes/find, GET /api/recipes/{id}, POST .../improve
@@ -192,9 +190,9 @@ nutriscan-ai-copilot/
 │   │   ├── ingredients.json         # Seed nutritional & pricing data per 100g
 │   │   └── recipes.json             # Curated seed recipes
 │   ├── database/
-│   │   ├── database.py              # SQLAlchemy engine & session management
+│   │   ├── database.py              # SQLAlchemy engine & session management (SQLite / PostgreSQL)
 │   │   ├── models.py                # ORM models (RecipeDB, IngredientDB, PantryItem, MealLogDB, etc.)
-│   │   └── seed.py                  # Automatic database seeding
+│   │   └── seed.py                  # Automatic database seeding (ensure_seeded)
 │   ├── services/
 │   │   ├── ai_router.py             # Centralized sequential OpenRouter -> Groq -> Gemini router
 │   │   ├── cost_service.py          # Per-ingredient & per-serving cost calculator
@@ -203,10 +201,12 @@ nutriscan-ai-copilot/
 │   │   ├── recipe_service.py        # Smart recipe matcher & AI recipe generator
 │   │   ├── scoring_service.py       # NutriScore (0-100) health scoring engine
 │   │   └── vision_service.py        # Multimodal ingredient & prepared meal analysis
-│   ├── config.py                    # Environment variable configuration
-│   ├── main.py                      # FastAPI application setup, CORS & security headers
+│   ├── .env.example                 # Backend environment variable template (placeholders only)
+│   ├── config.py                    # Environment variable & CORS allowlist configuration
+│   ├── main.py                      # FastAPI application entry point (app = FastAPI)
 │   ├── requirements.txt             # Backend Python dependencies
-│   ├── test_ai_fallback.py          # Unit tests for sequential AI provider fallback (mocked)
+│   ├── vercel.json                  # Vercel configuration for the separate Backend project
+│   ├── test_ai_fallback.py          # Unit & endpoint tests for AI fallback, CORS & health routes
 │   ├── test_ai_recipe_feature.py    # Integration test for AI recipe generation & SQLite persistence
 │   └── test_all_features.py         # Full 9-suite end-to-end API test runner
 ├── src/
@@ -227,14 +227,13 @@ nutriscan-ai-copilot/
 │   │   ├── NutritionPage.jsx        # Daily macro tracker
 │   │   └── ShoppingPage.jsx         # Missing ingredients shopping list
 │   ├── services/
-│   │   └── api.js                   # Frontend API client with resilient client fallback
+│   │   └── api.js                   # Frontend API client (VITE_API_BASE_URL resolution)
 │   ├── App.jsx                      # Main application state & page router
 │   └── main.jsx                     # React DOM root
-├── .env.example                     # Root environment variable template (placeholders only)
+├── .env.example                     # Frontend environment variable template (VITE_API_BASE_URL)
 ├── AI_FAILOVER_SETUP.md             # Detailed AI failover configuration guide
 ├── package.json                     # Frontend dependencies & scripts
-├── requirements.txt                 # Root Python dependencies for serverless builds
-├── vercel.json                      # Vercel routing & build configuration
+├── vercel.json                      # Root Vercel configuration for the Frontend Vite SPA
 └── vite.config.js                   # Vite dev server & /api proxy configuration
 ```
 
@@ -253,7 +252,7 @@ cd nutriscan-ai-copilot
 ```
 
 ### 2. Configure Environment Variables
-Copy `.env.example` to `.env` and `backend/.env`, then add your API keys:
+Copy `.env.example` to `.env` (for the frontend) and `backend/.env.example` to `backend/.env` (for the backend), then add your AI provider API keys in `backend/.env`:
 ```bash
 cp .env.example .env
 cp backend/.env.example backend/.env
@@ -261,50 +260,61 @@ cp backend/.env.example backend/.env
 
 ### 3. Install & Start the FastAPI Backend
 ```bash
-pip install -r backend/requirements.txt
 cd backend
-python main.py
+pip install -r requirements.txt
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 - The backend API starts at **`http://localhost:8000`**.
 - Interactive Swagger docs are available at **`http://localhost:8000/docs`**.
 
 ### 4. Install & Start the React + Vite Frontend
-Open a second terminal in the project root:
+Open a second terminal in the repository root:
 ```bash
 npm install
 npm run dev
 ```
-- The frontend starts at **`http://localhost:5173`** and automatically proxies `/api/*` requests to `http://localhost:8000`.
+- The frontend starts at **`http://localhost:5173`** and automatically proxies `/api/*` requests to `http://localhost:8000` when `VITE_API_BASE_URL` is left empty.
 
 ---
 
 ## 🔐 Environment Variables Configuration
 
-Configure these variables in `backend/.env` (local) or your hosting provider's Environment Variables panel. Never commit real keys to Git.
+### 1. Frontend Environment Variables (`.env` / Frontend Vercel Project)
+Only public configuration belongs in the frontend. **Never** put AI API keys in frontend `VITE_*` variables.
 
 ```env
-# Provider 1: OpenRouter (Primary)
+# Leave empty in local development to use Vite's /api proxy -> http://localhost:8000
+# In production on Vercel, set to your deployed FastAPI backend URL:
+VITE_API_BASE_URL=https://your-backend-project.vercel.app
+```
+
+### 2. Backend Environment Variables (`backend/.env` / Backend Vercel Project)
+Configure these in `backend/.env` locally or in your **Backend Vercel Project → Settings → Environment Variables**. Never commit real keys to Git.
+
+```env
+# Provider 1: OpenRouter (Primary - Required)
 OPENROUTER_API_KEY=your_openrouter_api_key_here
 OPENROUTER_MODEL=openrouter/free
 OPENROUTER_VISION_MODEL=openrouter/free
-OPENROUTER_SITE_URL=https://nutriscan-ai.vercel.app
+OPENROUTER_SITE_URL=https://your-frontend-project.vercel.app
 
-# Provider 2: Groq (Secondary Fallback)
+# Provider 2: Groq (Secondary Fallback - Required)
 GROQ_API_KEY=your_groq_api_key_here
 GROQ_MODEL=qwen/qwen3.8-27b
 GROQ_VISION_MODEL=qwen/qwen3.8-27b
 
-# Provider 3: Google Gemini (Final Fallback)
+# Provider 3: Google Gemini (Tertiary Fallback - Required)
 GEMINI_API_KEY=your_gemini_api_key_here
 GEMINI_MODEL=gemini-3.8-flash
 GEMINI_VISION_MODEL=gemini-3.8-flash
 
-# Server & Timeout Configuration
-AI_TIMEOUT_SECONDS=20
-PORT=8000
-HOST=0.0.0.0
-ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,https://nutriscan-ai.vercel.app
-DATABASE_URL=sqlite:///./nutriscan.db
+# Timeout & CORS Configuration
+AI_TIMEOUT_SECONDS=25
+ALLOWED_ORIGINS=https://your-frontend-project.vercel.app,http://localhost:5173,http://127.0.0.1:5173
+
+# Database (Optional: defaults to sqlite:///./nutriscan.db locally or sqlite:////tmp/nutriscan.db on Vercel)
+# Set to a managed PostgreSQL URL (postgresql://...) in production for persistent storage across cold starts:
+DATABASE_URL=
 ```
 
 ---
@@ -313,24 +323,25 @@ DATABASE_URL=sqlite:///./nutriscan.db
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/api` or `/` | Health & AI router status (`provider_order`, `configured_models`) |
-| `GET` | `/api/health` | Lightweight liveness check (`{"status": "ok"}`) |
-| `POST` | `/api/scan/ingredients` | Upload food image (`multipart/form-data`) → detected ingredients list |
-| `POST` | `/api/scan/meal` | Upload cooked meal photo (`multipart/form-data`) → dish & macro estimate |
-| `POST` | `/api/recipes/find` | Match & rank recipes + generate custom AI recipe for scanned ingredients |
+| `GET` | `/` or `/api` | Service info, version, and AI router readiness |
+| `GET` | `/health` or `/api/health` | Health check & AI provider status (`openrouter`, `groq`, `gemini`, `fallback_ready`) |
+| `POST` | `/api/scan/ingredients` | Upload food image (`multipart/form-data`) → detected ingredients list *(alias: `/api/scan-ingredients`)* |
+| `POST` | `/api/scan/meal` | Upload cooked meal photo (`multipart/form-data`) → dish & macro estimate *(alias: `/api/scan-meal`)* |
+| `POST` | `/api/recipes/find` | Match & rank recipes + generate custom AI recipe for scanned ingredients *(alias: `/api/recommend-recipes`)* |
+| `GET` | `/api/recipes` | List all available recipes |
 | `GET` | `/api/recipes/{recipe_id}` | Full recipe details with optional `?servings=N` scaling |
 | `POST` | `/api/recipes/{recipe_id}/improve` | Optimize recipe macros (reduce oil, add greens, boost protein, swaps) |
 | `GET` | `/api/pantry` | List all pantry inventory items |
 | `POST` | `/api/pantry` | Add a pantry item (`ingredient`, `quantity`, `unit`, `freshness`) |
 | `PUT` | `/api/pantry/{id}` | Update pantry item quantity or freshness |
 | `DELETE` | `/api/pantry/{id}` | Remove item from pantry |
-| `GET` | `/api/nutrition/today` | Today's logged macros, targets, percentage progress & meal timeline |
-| `POST` | `/api/meals` | Log a consumed meal to today's nutrition tracker |
+| `GET` | `/api/nutrition/today` | Today's logged macros, targets, percentage progress & meal timeline *(alias: `/api/nutrition-summary`)* |
+| `POST` | `/api/meals` | Log a consumed meal to today's nutrition tracker *(alias: `/api/log-meal`)* |
 | `GET` | `/api/shopping-list` | List shopping list items |
-| `POST` | `/api/shopping-list` | Add single item (`POST /api/shopping-list/batch` for multiple items) |
+| `POST` | `/api/shopping-list` | Add single item (`POST /api/shopping-list/batch` or `/api/shopping-list/generate` for batch) |
 | `PUT` | `/api/shopping-list/{id}` | Toggle `purchased` status or update quantity |
 | `DELETE` | `/api/shopping-list/{id}` | Delete item from shopping list |
-| `POST` | `/api/assistant/ask` | Context-aware AI Kitchen Assistant Q&A |
+| `POST` | `/api/assistant/ask` | Context-aware AI Kitchen Assistant Q&A *(alias: `/api/assistant/chat`)* |
 
 ---
 
@@ -338,8 +349,8 @@ DATABASE_URL=sqlite:///./nutriscan.db
 
 NutriScan includes three automated backend test suites:
 
-### 1. Sequential AI Fallback Unit Tests (Mocked Providers)
-Verifies strict `OpenRouter → Groq → Gemini` priority order, single-provider call when primary succeeds, fallback on HTTP 429/5xx/timeouts, fallback on empty or malformed JSON, vision payload formatting (`image_url` vs `inline_data`), skipping text-only models on vision tasks, missing API key handling, key redaction in errors, and pre-flight validation:
+### 1. Sequential AI Fallback, CORS & Endpoint Tests
+Verifies strict `OpenRouter → Groq → Gemini` priority order, single-provider execution when primary succeeds, fallback on HTTP 429/5xx/timeouts, fallback on empty or malformed JSON, `/`, `/api`, `/health`, `/api/health` responses, CORS origin allowlist enforcement (no wildcard `*` with credentials), secret non-exposure, and mocked feature endpoints:
 ```bash
 python backend/test_ai_fallback.py
 ```
@@ -358,21 +369,40 @@ python backend/test_all_features.py
 
 ---
 
-## 🌐 Deployment Guide (Vercel / Render)
+## 🌐 Deployment Guide (Two Separate Vercel Projects)
 
-1. Push this repository to GitHub.
-2. Import the project into **Vercel**.
-3. Vercel automatically detects `vercel.json`:
-   - Builds the React frontend via `npm run build` into `dist/`.
-   - Routes `/api/*` requests to the FastAPI serverless entrypoint (`api/index.py`).
-4. In **Vercel Project Settings → Environment Variables**, add:
-   - `OPENROUTER_API_KEY`
-   - `GROQ_API_KEY`
-   - `GEMINI_API_KEY`
-   - `OPENROUTER_MODEL` (`openrouter/free`)
-   - `GROQ_MODEL` (`qwen/qwen3.8-27b`)
-   - `GEMINI_MODEL` (`gemini-3.8-flash`)
-5. Redeploy and verify `/api` reports `"ai_active": true` and `"provider_order": ["openrouter", "groq", "gemini"]`.
+NutriScan is configured for a clean **two-project Vercel deployment** from the same GitHub repository:
+
+### Step 1: Deploy the Backend Project (`backend/`)
+1. In the **Vercel Dashboard**, click **Add New... → Project** and import `vatsalpro/nutriscan-ai-copilot`.
+2. Configure the project settings:
+   - **Root Directory**: `backend`
+   - **Framework Preset**: `FastAPI` (or `Other` — `backend/vercel.json` routes all requests to `main.py`)
+3. Add **Backend Environment Variables**:
+   - `OPENROUTER_API_KEY` = `<your_openrouter_key>`
+   - `GROQ_API_KEY` = `<your_groq_key>`
+   - `GEMINI_API_KEY` = `<your_gemini_key>`
+   - *(Optional)* `DATABASE_URL` = `<your_managed_postgres_url>`
+4. Click **Deploy** and copy the generated backend URL (e.g., `https://nutriscan-backend.vercel.app`).
+5. Verify `https://<your-backend-domain>.vercel.app/api/health` returns `"status": "healthy"`.
+
+### Step 2: Deploy the Frontend Project (Repository Root `.`)
+1. In the **Vercel Dashboard**, click **Add New... → Project** and import `vatsalpro/nutriscan-ai-copilot` a second time.
+2. Configure the project settings:
+   - **Root Directory**: `.` *(repository root)*
+   - **Framework Preset**: `Vite`
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+3. Under **Environment Variables**, paste the deployed backend URL from Step 1:
+   - `VITE_API_BASE_URL` = `https://<your-backend-domain>.vercel.app`
+4. Click **Deploy** and copy the generated frontend URL (e.g., `https://nutriscan-ai-copilot.vercel.app`).
+
+### Step 3: Set `ALLOWED_ORIGINS` on the Backend Project
+1. Return to your **Backend Vercel Project → Settings → Environment Variables**.
+2. Add or update:
+   - `ALLOWED_ORIGINS` = `https://<your-frontend-domain>.vercel.app`
+   - `OPENROUTER_SITE_URL` = `https://<your-frontend-domain>.vercel.app`
+3. **Redeploy** the Backend project so CORS allows requests from your production frontend domain.
 
 ---
 
