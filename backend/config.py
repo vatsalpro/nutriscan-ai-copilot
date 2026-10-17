@@ -1,4 +1,5 @@
 import os
+import tempfile
 from pathlib import Path
 from typing import List
 from dotenv import load_dotenv
@@ -84,9 +85,9 @@ class Settings:
 
     if os.getenv("VERCEL"):
         # Vercel serverless functions have an ephemeral, read-only project filesystem;
-        # use /tmp/nutriscan.db unless an external managed DATABASE_URL is configured.
+        # use the OS temp directory (/tmp/nutriscan.db on Linux) unless an external DATABASE_URL is configured.
         if not _raw_db_url or "./nutriscan.db" in _raw_db_url or _raw_db_url.endswith("/nutriscan.db"):
-            DATABASE_URL: str = "sqlite:////tmp/nutriscan.db"
+            DATABASE_URL: str = f"sqlite:///{(Path(tempfile.gettempdir()) / 'nutriscan.db').as_posix()}"
         else:
             DATABASE_URL: str = _raw_db_url
     else:

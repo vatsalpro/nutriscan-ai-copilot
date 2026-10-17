@@ -19,9 +19,9 @@ Base = declarative_base()
 
 
 def init_db():
-    from database import models  # noqa: F401
-    Base.metadata.create_all(bind=engine)
     try:
+        from database import models  # noqa: F401
+        Base.metadata.create_all(bind=engine)
         db = SessionLocal()
         try:
             recipe_count = db.query(models.RecipeDB).count()
@@ -31,7 +31,7 @@ def init_db():
             from database.seed import seed_database
             seed_database()
     except Exception as exc:
-        logger.warning("Auto-seed check failed: %s", exc)
+        logger.warning("Database initialization/seed warning: %s", exc)
 
 
 init_db()
