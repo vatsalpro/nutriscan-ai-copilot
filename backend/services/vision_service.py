@@ -8,17 +8,58 @@ logger = logging.getLogger(__name__)
 
 
 def _validate_ingredients_payload(data: Any) -> bool:
+    if isinstance(data, list) and len(data) > 0:
+        # Some models return a raw JSON array; cannot mutate type in-place, so require dict wrapper
+        return False
     if not isinstance(data, dict):
         return False
-    ingredients = data.get("ingredients")
+    ingredients = data.get("ingredients") or data.get("items") or data.get("detected_ingredients")
     if not isinstance(ingredients, list) or len(ingredients) == 0:
         return False
+
+    normalized = []
     for item in ingredients:
-        if not isinstance(item, dict):
-            return False
-        name = item.get("name") or item.get("ingredient")
-        if not isinstance(name, str) or not name.strip():
-            return False
+        if isinstance(item, str) and item.strip():
+            normalized.append({
+                "name": item.strip().lower(),
+                "estimated_quantity": 100,
+                "unit": "g",
+                "confidence": 0.9,
+            })
+        elif isinstance(item, dict):
+            raw_name = (
+                item.get("name")
+                or item.get("ingredient")
+                or item.get("item")
+                or item.get("food")
+            )
+            if not isinstance(raw_name, str) or not raw_name.strip():
+                continue
+            qty = item.get("estimated_quantity")
+            if qty is None:
+                qty = item.get("quantity", 100)
+            try:
+                qty = float(qty) if qty is not None else 100
+            except (ValueError, TypeError):
+                qty = 100
+            unit = str(item.get("unit") or "g").strip() or "g"
+            conf = item.get("confidence", 0.9)
+            try:
+                conf = float(conf)
+                if conf > 1.0:
+                    conf = round(conf / 100.0, 2)
+            except (ValueError, TypeError):
+                conf = 0.9
+            normalized.append({
+                "name": raw_name.strip().lower(),
+                "estimated_quantity": qty,
+                "unit": unit,
+                "confidence": conf,
+            })
+
+    if not normalized:
+        return False
+    data["ingredients"] = normalized
     return True
 
 
@@ -27,13 +68,41 @@ def _validate_meal_payload(data: Any) -> bool:
         return False
     meal = data.get("meal")
     if not isinstance(meal, dict):
-        return False
-    meal_name = meal.get("meal_name")
-    nutrition = meal.get("nutrition")
+        if "meal_name" in data or "dish" in data or "name" in data:
+            meal = dict(data)
+            data["meal"] = meal
+        else:
+            return False
+
+    meal_name = meal.get("meal_name") or meal.get("dish") or meal.get("name")
     if not isinstance(meal_name, str) or not meal_name.strip():
         return False
-    if not isinstance(nutrition, dict) or "calories" not in nutrition:
-        return False
+    meal["meal_name"] = meal_name.strip()
+
+    nutrition = meal.get("nutrition")
+    if not isinstance(nutrition, dict):
+        if "calories" in meal or "calories_kcal" in meal:
+            nutrition = {
+                "calories": meal.get("calories") or meal.get("calories_kcal") or 350,
+                "protein": meal.get("protein") or meal.get("protein_g") or 15,
+                "carbs": meal.get("carbs") or meal.get("carbs_g") or 40,
+                "fat": meal.get("fat") or meal.get("fat_g") or 12,
+                "fiber": meal.get("fiber") or meal.get("fiber_g") or 4,
+            }
+            meal["nutrition"] = nutrition
+        else:
+            return False
+
+    if "calories" not in nutrition:
+        if "calories_kcal" in nutrition:
+            nutrition["calories"] = nutrition["calories_kcal"]
+        else:
+            return False
+
+    meal.setdefault("estimated_portion", meal.get("serving_size") or "~300g")
+    meal.setdefault("confidence", 0.92)
+    meal.setdefault("portion_confidence", 0.80)
+    meal.setdefault("description", f"Vision AI nutrition estimate for {meal['meal_name']}.")
     return True
 
 
@@ -48,12 +117,12 @@ Identify EVERY clearly visible edible food ingredient. This is an open-world tas
 do not restrict the answer to a predefined ingredient list.
 
 Rules:
-- Do not invent ingredients that are not visible.
+- Identify all visible food items, fruits, vegetables, proteins, grains, spices, or packaged foods.
 - Normalize each ingredient to a simple lowercase name.
-- Estimate quantity only when visually reasonable; otherwise use null.
+- Estimate quantity (numeric value, e.g. 2 or 150).
 - Use units such as g, ml, pcs, tsp, tbsp, cloves.
 - Give confidence from 0.0 to 1.0.
-- Return ONLY valid JSON.
+- Return ONLY valid JSON matching the exact schema below.
 
 Schema:
 {

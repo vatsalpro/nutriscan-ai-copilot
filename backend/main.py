@@ -9,8 +9,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Ensure backend directory is on sys.path for both local and Vercel serverless execution
 BACKEND_DIR = Path(__file__).resolve().parent
+BACKEND_API_DIR = BACKEND_DIR / "api"
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
+if "api" in sys.modules:
+    _api_pkg = sys.modules["api"]
+    if hasattr(_api_pkg, "__path__") and str(BACKEND_API_DIR) not in _api_pkg.__path__:
+        _api_pkg.__path__.insert(0, str(BACKEND_API_DIR))
 
 from config import settings
 from api import scan, recipes, pantry, nutrition, shopping, assistant
@@ -93,4 +98,4 @@ def health():
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host=settings.HOST, port=settings.PORT, reload=True)
+    uvicorn.run("main:app", host=settings.HOST, port=settings.PORT, reload=True, app_dir=str(BACKEND_DIR))

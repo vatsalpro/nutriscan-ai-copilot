@@ -179,6 +179,10 @@ class AIRouter:
         text = (text or "").strip()
         if not text:
             raise json.JSONDecodeError("Empty response text", "", 0)
+        # Strip reasoning <think>...</think> blocks if present
+        cleaned_think = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+        if cleaned_think:
+            text = cleaned_think
         if "```json" in text:
             text = text.split("```json", 1)[1].split("```", 1)[0].strip()
         elif "```" in text:
@@ -239,7 +243,8 @@ class AIRouter:
             )
         if not isinstance(content, str) or not content.strip():
             raise AIProviderError(f"{provider_label} returned an empty message content.")
-        return content.strip()
+        cleaned = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+        return cleaned if cleaned else content.strip()
 
     @staticmethod
     def _check_http_response(response: requests.Response, provider_label: str) -> Dict[str, Any]:
@@ -308,7 +313,7 @@ class AIRouter:
         is_image = image_bytes is not None
         model = self._resolve_model("groq", is_image=is_image)
         messages = self._openai_messages(prompt, system=system, image_bytes=image_bytes, mime_type=mime_type)
-        groq_max_tokens = min(max_tokens, 650)
+        groq_max_tokens = min(max_tokens, 1200)
         r = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
             headers=self._headers(settings.GROQ_API_KEY),
